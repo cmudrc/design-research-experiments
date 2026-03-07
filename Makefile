@@ -73,9 +73,11 @@ run-example: check-python
 	PYTHONPATH=src $(PYTHON) examples/basic_usage.py
 
 docs-build: check-python
+	$(PYTHON) scripts/generate_example_docs.py
 	PYTHONPATH=src $(SPHINX) -b html docs docs/_build/html -n -W --keep-going -E
 
 docs-check: check-python
+	$(PYTHON) scripts/generate_example_docs.py --check
 	$(PYTHON) scripts/check_docs_consistency.py
 
 docs-linkcheck: check-python

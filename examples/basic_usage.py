@@ -1,31 +1,42 @@
-"""Minimal example usage for design-research-experiments."""
+"""Minimal study-construction example.
+
+## Introduction
+Construct the smallest useful ``Study`` using only top-level ``drex`` exports.
+
+## Technical Implementation
+1. Define one manipulated factor with two levels.
+2. Register one primary outcome plus one hypothesis and analysis plan.
+3. Print ``study.to_dict()`` so the serialized schema is visible in one place.
+
+## Expected Results
+The script prints one dictionary containing study metadata, factor definitions,
+hypothesis bindings, and analysis-plan fields.
+"""
 
 from __future__ import annotations
 
-from design_research_experiments.conditions import Factor, FactorKind, Level
-from design_research_experiments.hypotheses import AnalysisPlan, Hypothesis, OutcomeSpec
-from design_research_experiments.study import Study
+import design_research_experiments as drex
 
 
 def main() -> None:
     """Construct and print a tiny study definition."""
-    study = Study(
+    study = drex.Study(
         study_id="example-study",
         title="Example Study",
         description="Minimal study object for notebook/script usage.",
         factors=(
-            Factor(
+            drex.Factor(
                 name="prompt_frame",
                 description="Prompt framing",
-                kind=FactorKind.MANIPULATED,
+                kind=drex.FactorKind.MANIPULATED,
                 levels=(
-                    Level(name="neutral", value="neutral"),
-                    Level(name="challenge", value="challenge"),
+                    drex.Level(name="neutral", value="neutral"),
+                    drex.Level(name="challenge", value="challenge"),
                 ),
             ),
         ),
         outcomes=(
-            OutcomeSpec(
+            drex.OutcomeSpec(
                 name="primary_outcome",
                 source_table="runs",
                 column="primary_outcome",
@@ -34,7 +45,7 @@ def main() -> None:
             ),
         ),
         hypotheses=(
-            Hypothesis(
+            drex.Hypothesis(
                 hypothesis_id="h1",
                 label="Prompt framing effect",
                 statement="Prompt frame influences the primary outcome.",
@@ -44,7 +55,7 @@ def main() -> None:
             ),
         ),
         analysis_plans=(
-            AnalysisPlan(analysis_plan_id="ap1", hypothesis_ids=("h1",), tests=("ttest",)),
+            drex.AnalysisPlan(analysis_plan_id="ap1", hypothesis_ids=("h1",), tests=("ttest",)),
         ),
         problem_ids=("problem-1",),
     )

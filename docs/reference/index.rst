@@ -20,5 +20,6 @@ Primary modules and responsibilities:
 - ``design_research_experiments.conditions``: factor/block/constraint condition generation.
 - ``design_research_experiments.runners``: execution orchestration, resume, checkpoint flow.
 - ``design_research_experiments.artifacts``: canonical exports, manifests, and bundling.
+- ``design_research_experiments.recipes``: reusable function-based study templates.
 - ``design_research_experiments.adapters``: integration glue for agents/problems/analysis.
 - ``design_research_experiments.io``: YAML/JSON/CSV/SQLite persistence helpers.

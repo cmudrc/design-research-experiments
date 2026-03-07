@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import re
 import runpy
 from pathlib import Path
 
 from design_research_experiments import cli
+from design_research_experiments.io import csv_io
 
 from .helpers import make_study
 
@@ -68,6 +70,32 @@ def test_cli_run_study_dry_run(tmp_path: Path, monkeypatch: object) -> None:
     assert cli.main(["run-study", str(study_path), "--dry-run"]) == 0
 
 
+def test_cli_generate_doe_writes_csv(tmp_path: Path) -> None:
+    """CLI should generate a DOE table CSV from JSON factor specs."""
+    out_path = tmp_path / "doe.csv"
+
+    assert (
+        cli.main(
+            [
+                "generate-doe",
+                "--kind",
+                "lhs",
+                "--factors-json",
+                '{"x": [0, 1], "y": [10, 20]}',
+                "--n-samples",
+                "6",
+                "--seed",
+                "0",
+                "--out",
+                str(out_path),
+            ]
+        )
+        == 0
+    )
+    rows = csv_io.read_csv(out_path)
+    assert len(rows) == 6
+
+
 def test_example_scripts_execute(tmp_path: Path, monkeypatch: object) -> None:
     """Bundled examples should execute successfully from a clean working directory."""
     monkeypatch.chdir(tmp_path)
@@ -75,11 +103,26 @@ def test_example_scripts_execute(tmp_path: Path, monkeypatch: object) -> None:
     for script_name in (
         "basic_usage.py",
         "public_api_walkthrough.py",
+        "doe_capabilities.py",
         "recipe_overview.py",
         "recipe_prompt_framing_run.py",
-        "recipe_grammar_scaffold_run.py",
+        "recipe_optimization_benchmark_run.py",
     ):
         runpy.run_path(
             str(Path(__file__).resolve().parents[1] / "examples" / script_name),
             run_name="__main__",
+        )
+
+
+def test_examples_use_top_level_import_convention() -> None:
+    """Examples should import only the top-level package as `drex`."""
+    examples_dir = Path(__file__).resolve().parents[1] / "examples"
+    from_pattern = re.compile(r"^from design_research_experiments\.", re.MULTILINE)
+    import_pattern = re.compile(r"^import design_research_experiments as drex$", re.MULTILINE)
+
+    for path in sorted(examples_dir.glob("*.py")):
+        text = path.read_text(encoding="utf-8")
+        assert from_pattern.search(text) is None, f"Submodule import found in {path.name}"
+        assert import_pattern.search(text) is not None, (
+            f"Top-level alias import missing in {path.name}"
         )

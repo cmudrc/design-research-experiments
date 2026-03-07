@@ -270,6 +270,46 @@ wheels = [
 ]
 
 [[package]]
+name = "design-research-experiments"
+version = "0.1.0"
+source = { editable = "." }
+dependencies = [
+    { name = "pyyaml" },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "build" },
+    { name = "mypy" },
+    { name = "pre-commit" },
+    { name = "pytest" },
+    { name = "pytest-cov" },
+    { name = "ruff" },
+    { name = "sphinx" },
+    { name = "sphinx-rtd-theme" },
+    { name = "twine" },
+    { name = "types-pyyaml" },
+    { name = "uv" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "build", marker = "extra == 'dev'", specifier = ">=1.2,<2" },
+    { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.10,<2" },
+    { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=3.7,<5" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.2,<9" },
+    { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=7.0,<8" },
+    { name = "pyyaml", specifier = ">=6.0,<7" },
+    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.6.0,<1" },
+    { name = "sphinx", marker = "extra == 'dev'", specifier = ">=7.4,<9" },
+    { name = "sphinx-rtd-theme", marker = "extra == 'dev'", specifier = ">=2.0,<4" },
+    { name = "twine", marker = "extra == 'dev'", specifier = ">=5.1,<7" },
+    { name = "types-pyyaml", marker = "extra == 'dev'", specifier = ">=6.0,<7" },
+    { name = "uv", marker = "extra == 'dev'", specifier = ">=0.6,<1" },
+]
+provides-extras = ["dev"]
+
+[[package]]
 name = "distlib"
 version = "0.4.0"
 source = { registry = "https://pypi.org/simple" }
@@ -286,40 +326,6 @@ sdist = { url = "https://files.pythonhosted.org/packages/ae/ed/aefcc8cd0ba62a056
 wheels = [
     { url = "https://files.pythonhosted.org/packages/8f/d7/9322c609343d929e75e7e5e6255e614fcc67572cfd083959cdef3b7aad79/docutils-0.21.2-py3-none-any.whl", hash = "sha256:dafca5b9e384f0e419294eb4d2ff9fa826435bf15f15b7bd45723e8ad76811b2", size = 587408, upload-time = "2024-04-23T18:57:14.835Z" },
 ]
-
-[[package]]
-name = "python-template"
-version = "0.1.0"
-source = { editable = "." }
-
-[package.optional-dependencies]
-dev = [
-    { name = "build" },
-    { name = "mypy" },
-    { name = "pre-commit" },
-    { name = "pytest" },
-    { name = "pytest-cov" },
-    { name = "ruff" },
-    { name = "sphinx" },
-    { name = "sphinx-rtd-theme" },
-    { name = "twine" },
-    { name = "uv" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "build", marker = "extra == 'dev'", specifier = ">=1.2,<2" },
-    { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.10,<2" },
-    { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=3.7,<5" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.2,<9" },
-    { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=7.0,<8" },
-    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.6.0,<1" },
-    { name = "sphinx", marker = "extra == 'dev'", specifier = ">=7.4,<9" },
-    { name = "sphinx-rtd-theme", marker = "extra == 'dev'", specifier = ">=2.0,<4" },
-    { name = "twine", marker = "extra == 'dev'", specifier = ">=5.1,<7" },
-    { name = "uv", marker = "extra == 'dev'", specifier = ">=0.6,<1" },
-]
-provides-extras = ["dev"]
 
 [[package]]
 name = "filelock"
@@ -1121,6 +1127,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/e0/a8/949edebe3a82774c1ec34f637f5dd82d1cf22c25e963b7d63771083bbee5/twine-6.2.0.tar.gz", hash = "sha256:e5ed0d2fd70c9959770dce51c8f39c8945c574e18173a7b81802dab51b4b75cf", size = 172262, upload-time = "2025-09-04T15:43:17.255Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/3a/7a/882d99539b19b1490cac5d77c67338d126e4122c8276bf640e411650c830/twine-6.2.0-py3-none-any.whl", hash = "sha256:418ebf08ccda9a8caaebe414433b0ba5e25eb5e4a927667122fbe8f829f985d8", size = 42727, upload-time = "2025-09-04T15:43:15.994Z" },
+]
+
+[[package]]
+name = "types-pyyaml"
+version = "6.0.12.20250915"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/7e/69/3c51b36d04da19b92f9e815be12753125bd8bc247ba0470a982e6979e71c/types_pyyaml-6.0.12.20250915.tar.gz", hash = "sha256:0f8b54a528c303f0e6f7165687dd33fafa81c807fcac23f632b63aa624ced1d3", size = 17522, upload-time = "2025-09-15T03:01:00.728Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/bd/e0/1eed384f02555dde685fff1a1ac805c1c7dcb6dd019c916fe659b1c1f9ec/types_pyyaml-6.0.12.20250915-py3-none-any.whl", hash = "sha256:e7d4d9e064e89a3b3cae120b4990cd370874d2bf12fa5f46c97018dd5d3c9ab6", size = 20338, upload-time = "2025-09-15T03:00:59.218Z" },
 ]
 
 [[package]]

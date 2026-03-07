@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import argparse
+import json
 from collections.abc import Sequence
 from pathlib import Path
 
 from .adapters.analysis import export_analysis_tables
 from .artifacts import bundle_results, load_checkpointed_run_results
-from .designs import build_design
+from .designs import build_design, generate_doe
 from .io import csv_io
 from .runners import resume_study, run_study
 from .study import Study, load_study, validate_study
@@ -45,6 +46,62 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Optional path for conditions CSV output",
     )
     materialize_parser.set_defaults(handler=_handle_materialize_design)
+
+    doe_parser = subparsers.add_parser(
+        "generate-doe",
+        help="Generate a DOE table (full, lhs, frac2) and write CSV output",
+    )
+    doe_parser.add_argument(
+        "--kind",
+        required=True,
+        choices=["full", "lhs", "frac2"],
+        help="Design type to generate.",
+    )
+    doe_parser.add_argument(
+        "--factors-json",
+        required=True,
+        help="JSON object mapping factor names to DOE definitions.",
+    )
+    doe_parser.add_argument(
+        "--n-samples",
+        type=int,
+        default=None,
+        help="Number of LHS samples (required for --kind lhs).",
+    )
+    doe_parser.add_argument("--seed", type=int, default=0, help="Random seed.")
+    doe_parser.add_argument(
+        "--center-points",
+        type=int,
+        default=0,
+        help="Number of center points to append.",
+    )
+    doe_parser.add_argument(
+        "--replicates",
+        type=int,
+        default=1,
+        help="Number of design-table replicates to append.",
+    )
+    doe_parser.add_argument(
+        "--block-randomization-key",
+        type=str,
+        default=None,
+        help="Optional column for within-block randomization.",
+    )
+    doe_parser.add_argument("--out", required=True, type=Path, help="Output CSV path.")
+    randomize_group = doe_parser.add_mutually_exclusive_group()
+    randomize_group.add_argument(
+        "--randomize",
+        dest="randomize",
+        action="store_true",
+        help="Randomize run order (default).",
+    )
+    randomize_group.add_argument(
+        "--no-randomize",
+        dest="randomize",
+        action="store_false",
+        help="Keep generated run order unchanged.",
+    )
+    doe_parser.set_defaults(randomize=True, handler=_handle_generate_doe)
 
     run_parser = subparsers.add_parser("run-study", help="Execute a study")
     run_parser.add_argument("study", type=Path, help="Path to study YAML/JSON")
@@ -118,6 +175,34 @@ def _handle_materialize_design(args: argparse.Namespace) -> int:
 
     csv_io.write_csv(output_path, rows)
     print(f"Materialized {len(conditions)} conditions to {output_path}")
+    return 0
+
+
+def _handle_generate_doe(args: argparse.Namespace) -> int:
+    """Handle the `generate-doe` command."""
+    try:
+        factors = json.loads(str(args.factors_json))
+    except json.JSONDecodeError as exc:
+        raise SystemExit(f"--factors-json must be valid JSON: {exc.msg}") from exc
+    if not isinstance(factors, dict):
+        raise SystemExit("--factors-json must decode to a JSON object.")
+
+    result = generate_doe(
+        kind=str(args.kind),
+        factors=factors,
+        n_samples=args.n_samples,
+        seed=int(args.seed),
+        center_points=int(args.center_points),
+        replicates=int(args.replicates),
+        randomize=bool(args.randomize),
+        block_randomization_key=args.block_randomization_key,
+    )
+    rows = result["design"]
+    csv_io.write_csv(args.out, rows)
+    print(result["interpretation"])
+    for warning in result["warnings"]:
+        print(f"Warning: {warning}")
+    print(f"Wrote design to {args.out}")
     return 0
 
 

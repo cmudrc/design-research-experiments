@@ -32,7 +32,7 @@ Start Here
 
 - :doc:`quickstart` for a compact end-to-end path.
 - :doc:`dependencies_and_extras` for install profiles and maintainer checks.
-- :doc:`examples_and_recipes` for runnable scripts, including recipe runs.
+- :doc:`examples/index` for generated runnable-script documentation.
 - :doc:`api` for the curated top-level public API.
 - :doc:`reference/index` for reference orientation and module map.
 - `CONTRIBUTING.md <https://github.com/cmudrc/design-research-experiments/blob/main/CONTRIBUTING.md>`_
@@ -45,7 +45,7 @@ Start Here
 
    quickstart
    dependencies_and_extras
-   examples_and_recipes
+   examples/index
 
 .. toctree::
    :maxdepth: 2

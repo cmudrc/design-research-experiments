@@ -21,11 +21,12 @@ from design_research_experiments.bundles import (
 from design_research_experiments.conditions import Condition
 from design_research_experiments.designs import build_design
 from design_research_experiments.recipes import (
-    AgentArchitectureComparisonRecipe,
-    DiversityAndExplorationRecipe,
-    GrammarScaffoldRecipe,
-    HumanVsAgentProcessRecipe,
-    PromptFramingRecipe,
+    build_agent_architecture_comparison_study,
+    build_diversity_and_exploration_study,
+    build_grammar_scaffold_study,
+    build_human_vs_agent_process_study,
+    build_optimization_benchmark_study,
+    build_prompt_framing_study,
 )
 from design_research_experiments.reporting import (
     render_codebook,
@@ -300,12 +301,13 @@ def test_analysis_adapter_validation_and_exports(
 
 def test_recipes_bundles_and_reporting(tmp_path: Path) -> None:
     """Recipe/bundle/reporting utilities should build coherent outputs."""
-    recipes = (
-        AgentArchitectureComparisonRecipe(),
-        PromptFramingRecipe(),
-        GrammarScaffoldRecipe(),
-        HumanVsAgentProcessRecipe(),
-        DiversityAndExplorationRecipe(),
+    recipe_builders = (
+        build_agent_architecture_comparison_study,
+        build_prompt_framing_study,
+        build_grammar_scaffold_study,
+        build_human_vs_agent_process_study,
+        build_diversity_and_exploration_study,
+        build_optimization_benchmark_study,
     )
     bundles = (
         ideation_bundle(),
@@ -317,7 +319,7 @@ def test_recipes_bundles_and_reporting(tmp_path: Path) -> None:
     assert len(bundles) == 4
     assert all(bundle.problem_ids for bundle in bundles)
 
-    built_studies = [recipe.build_study() for recipe in recipes]
+    built_studies = [builder() for builder in recipe_builders]
     for study in built_studies:
         study.output_dir = tmp_path / study.study_id
         assert validate_study(study) == []

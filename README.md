@@ -48,6 +48,7 @@ The package installs a `drexp` CLI:
 ```bash
 drexp validate-study path/to/study.yaml
 drexp materialize-design path/to/study.yaml
+drexp generate-doe --kind lhs --factors-json '{"x": [0, 1], "y": [10, 20]}' --n-samples 12 --out artifacts/doe.csv
 drexp run-study path/to/study.yaml
 drexp resume-study path/to/study.yaml
 drexp export-analysis path/to/study.yaml
@@ -75,9 +76,11 @@ make docs
 Top-level exports are intentionally small:
 
 - `Study`, `Factor`, `Level`, `Constraint`, `Condition`, `Block`
+- `RecipeStudyConfig`, recipe-specific typed config classes
 - `Hypothesis`, `OutcomeSpec`, `AnalysisPlan`
 - `RunSpec`, `RunResult`, `BenchmarkBundle`
-- `build_design`, `materialize_conditions`
+- `build_design`, `generate_doe`, `materialize_conditions`
+- `build_prompt_framing_study`, `build_optimization_benchmark_study`, and other recipe builders
 - `run_study`, `resume_study`
 - `export_analysis_tables`, `validate_study`
 

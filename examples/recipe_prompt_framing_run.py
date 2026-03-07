@@ -1,18 +1,26 @@
-"""Runnable PromptFramingRecipe example with mock agents/problems."""
+"""Prompt-framing recipe execution example.
+
+## Introduction
+Execute a non-default prompt-framing recipe with deterministic mock components.
+
+## Technical Implementation
+1. Build ``PromptFramingConfig`` overrides for factors, design, budget, and IDs.
+2. Create deterministic in-memory problem and agent adapters.
+3. Run the study and write a markdown summary artifact.
+
+## Expected Results
+The script prints completed run count and writes
+``artifacts/example-prompt-framing/artifacts/prompt_framing_summary.md``.
+"""
 
 from __future__ import annotations
 
 from pathlib import Path
 
-from design_research_experiments.adapters import ProblemPacket
-from design_research_experiments.conditions import Condition
-from design_research_experiments.recipes import PromptFramingRecipe
-from design_research_experiments.reporting import render_markdown_summary, write_markdown_report
-from design_research_experiments.runners import run_study
-from design_research_experiments.study import RunSpec
+import design_research_experiments as drex
 
 
-def _build_problem_registry(problem_ids: tuple[str, ...]) -> dict[str, ProblemPacket]:
+def _build_problem_registry(problem_ids: tuple[str, ...]) -> dict[str, drex.ProblemPacket]:
     """Build a lightweight in-memory problem registry for the example run."""
 
     def evaluator(output: dict[str, object]) -> list[dict[str, object]]:
@@ -20,9 +28,9 @@ def _build_problem_registry(problem_ids: tuple[str, ...]) -> dict[str, ProblemPa
         text = str(output.get("text", ""))
         return [{"metric_name": "novelty", "metric_value": len(text) / 100.0}]
 
-    registry: dict[str, ProblemPacket] = {}
+    registry: dict[str, drex.ProblemPacket] = {}
     for problem_id in problem_ids:
-        registry[problem_id] = ProblemPacket(
+        registry[problem_id] = drex.ProblemPacket(
             problem_id=problem_id,
             family="ideation",
             brief=f"Ideation brief for {problem_id}",
@@ -35,7 +43,10 @@ def _agent_factory(agent_name: str):
     """Create a deterministic agent callable for one recipe arm."""
 
     def _agent(
-        *, problem_packet: ProblemPacket, run_spec: RunSpec, condition: Condition
+        *,
+        problem_packet: drex.ProblemPacket,
+        run_spec: drex.RunSpec,
+        condition: drex.Condition,
     ) -> dict[str, object]:
         """Generate one deterministic mock run result for prompt-framing conditions."""
         run_seed = run_spec.seed
@@ -77,13 +88,41 @@ def _agent_factory(agent_name: str):
 
 
 def main() -> None:
-    """Run a compact PromptFramingRecipe study and write a markdown summary."""
-    study = PromptFramingRecipe().build_study()
-    study.output_dir = Path("artifacts") / "example-prompt-framing"
-    study.problem_ids = ("ideation-1", "ideation-2")
-    study.run_budget.replicates = 1
-    study.run_budget.parallelism = 1
-    study.run_budget.max_runs = 6
+    """Run a prompt-framing study with non-default typed recipe overrides."""
+    config = drex.PromptFramingConfig(
+        study_id="prompt-framing-custom",
+        bundle=drex.ideation_bundle(),
+        # Replace sections wholesale with non-default recipe choices.
+        factors=(
+            drex.Factor(
+                name="prompt_frame",
+                description="Prompt framing style.",
+                kind=drex.FactorKind.MANIPULATED,
+                levels=(
+                    drex.Level(name="neutral", value="neutral"),
+                    drex.Level(name="challenge", value="challenge"),
+                    drex.Level(name="analogy", value="analogy"),
+                    drex.Level(name="counterfactual", value="counterfactual"),
+                ),
+            ),
+            drex.Factor(
+                name="prompt_difficulty",
+                description="Prompt difficulty.",
+                kind=drex.FactorKind.MANIPULATED,
+                levels=(
+                    drex.Level(name="low", value="low"),
+                    drex.Level(name="high", value="high"),
+                ),
+            ),
+        ),
+        design_spec={"kind": "constrained_factorial", "randomize": True},
+        run_budget=drex.RunBudget(replicates=1, parallelism=1, max_runs=8),
+        output_dir=Path("artifacts") / "example-prompt-framing",
+        # Explicit values override bundle-provided IDs.
+        problem_ids=("ideation-brief-a", "ideation-brief-b"),
+        agent_specs=("baseline-agent", "creative-agent"),
+    )
+    study = drex.build_prompt_framing_study(config)
 
     problem_registry = _build_problem_registry(study.problem_ids)
     agent_factories = {
@@ -91,15 +130,19 @@ def main() -> None:
         "creative-agent": lambda _condition: _agent_factory("creative-agent"),
     }
 
-    run_results = run_study(
+    run_results = drex.run_study(
         study,
         agent_factories=agent_factories,
         problem_registry=problem_registry,
         include_sqlite=True,
     )
 
-    summary = render_markdown_summary(study, run_results)
-    summary_path = write_markdown_report(study.output_dir, "prompt_framing_summary.md", summary)
+    summary = drex.render_markdown_summary(study, run_results)
+    summary_path = drex.write_markdown_report(
+        study.output_dir,
+        "prompt_framing_summary.md",
+        summary,
+    )
 
     print(f"Completed {len(run_results)} runs")
     print(f"Summary written to {summary_path}")

@@ -1,55 +1,51 @@
-"""Recipe and reporting overview for design-research-experiments."""
+"""Recipe overview example.
+
+## Introduction
+Survey the reusable recipe builders and reporting helpers without running a study.
+
+## Technical Implementation
+1. Instantiate each recipe factory once.
+2. Load standard benchmark bundles.
+3. Render markdown summary, methods scaffold, and codebook snippets.
+
+## Expected Results
+The script prints bundle counts and markdown snippets that confirm recipe objects
+and reporting helpers are wired correctly.
+"""
 
 from __future__ import annotations
 
 from pathlib import Path
 
-from design_research_experiments.bundles import (
-    grammar_problem_bundle,
-    human_vs_agent_bundle,
-    ideation_bundle,
-    optimization_bundle,
-)
-from design_research_experiments.designs import build_design
-from design_research_experiments.recipes import (
-    AgentArchitectureComparisonRecipe,
-    DiversityAndExplorationRecipe,
-    GrammarScaffoldRecipe,
-    HumanVsAgentProcessRecipe,
-    PromptFramingRecipe,
-)
-from design_research_experiments.reporting import (
-    render_codebook,
-    render_markdown_summary,
-    render_methods_scaffold,
-)
+import design_research_experiments as drex
 
 
 def main() -> None:
     """Build recipe studies and render lightweight markdown outputs."""
-    recipe_builders = (
-        AgentArchitectureComparisonRecipe(),
-        PromptFramingRecipe(),
-        GrammarScaffoldRecipe(),
-        HumanVsAgentProcessRecipe(),
-        DiversityAndExplorationRecipe(),
+    studies = (
+        drex.build_agent_architecture_comparison_study(),
+        drex.build_prompt_framing_study(),
+        drex.build_grammar_scaffold_study(),
+        drex.build_human_vs_agent_process_study(),
+        drex.build_diversity_and_exploration_study(),
+        drex.build_optimization_benchmark_study(),
     )
     bundles = (
-        ideation_bundle(),
-        optimization_bundle(),
-        grammar_problem_bundle(),
-        human_vs_agent_bundle(),
+        drex.ideation_bundle(),
+        drex.optimization_bundle(),
+        drex.grammar_problem_bundle(),
+        drex.human_vs_agent_bundle(),
     )
 
     print(f"Loaded {len(bundles)} benchmark bundles")
 
-    first_study = recipe_builders[0].build_study()
+    first_study = studies[0]
     first_study.output_dir = Path("artifacts") / "recipe-overview"
-    conditions = build_design(first_study)
+    conditions = drex.build_design(first_study)
 
-    print(render_markdown_summary(first_study, run_results=[]))
-    print(render_methods_scaffold(first_study))
-    print(render_codebook(first_study, conditions[:2]))
+    print(drex.render_markdown_summary(first_study, run_results=[]))
+    print(drex.render_methods_scaffold(first_study))
+    print(drex.render_codebook(first_study, conditions[:2]))
 
 
 if __name__ == "__main__":

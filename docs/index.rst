@@ -44,6 +44,7 @@ Start Here
    :hidden:
 
    quickstart
+   examples_and_recipes
    dependencies_and_extras
    examples/index
 

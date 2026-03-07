@@ -23,6 +23,7 @@ extensions = [
     "sphinx.ext.autosummary",
     "sphinx.ext.napoleon",
     "sphinx.ext.viewcode",
+    "sphinx.ext.intersphinx",
 ]
 
 napoleon_google_docstring = True
@@ -33,6 +34,9 @@ autodoc_typehints = "none"
 autosummary_generate = True
 autosummary_imported_members = True
 nitpicky = True
+intersphinx_mapping = {
+    "python": ("https://docs.python.org/3", None),
+}
 
 templates_path = ["_templates"]
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]

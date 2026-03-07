@@ -2,15 +2,28 @@
 
 from __future__ import annotations
 
-import python_template as package
+import design_research_experiments as drexp
 
 
-def test_public_exports_match_the_curated_api() -> None:
+def test_public_exports_match_curated_api() -> None:
     """Keep the top-level exports explicit and stable."""
-
-    assert package.__all__ == [
-        "ProjectBlueprint",
-        "build_default_blueprint",
-        "describe_project",
-        "normalize_package_name",
+    assert drexp.__all__ == [
+        "AnalysisPlan",
+        "BenchmarkBundle",
+        "Block",
+        "Condition",
+        "Constraint",
+        "Factor",
+        "Hypothesis",
+        "Level",
+        "OutcomeSpec",
+        "RunResult",
+        "RunSpec",
+        "Study",
+        "build_design",
+        "export_analysis_tables",
+        "materialize_conditions",
+        "resume_study",
+        "run_study",
+        "validate_study",
     ]

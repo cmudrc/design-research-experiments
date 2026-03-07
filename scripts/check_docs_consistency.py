@@ -58,7 +58,7 @@ def validate_docs_tree() -> list[str]:
 
     if not API_PATH.exists():
         errors.append("docs/api.rst is missing.")
-    elif "python_template" not in API_PATH.read_text(encoding="utf-8"):
+    elif "design_research_experiments" not in API_PATH.read_text(encoding="utf-8"):
         errors.append("docs/api.rst does not reference the package module.")
     return errors
 

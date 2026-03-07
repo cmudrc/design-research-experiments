@@ -1,7 +1,7 @@
 Quickstart
 ==========
 
-This template targets Python 3.12+ and assumes a standard `src/` layout.
+This package targets Python 3.12+ and assumes a standard `src/` layout.
 
 Local development setup:
 
@@ -18,7 +18,7 @@ Run the bundled example:
 
    make run-example
 
-Build the docs:
+Build docs:
 
 .. code-block:: bash
 

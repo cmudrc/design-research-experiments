@@ -63,7 +63,7 @@ qa: lint fmt-check type test
 
 coverage: check-python
 	mkdir -p artifacts/coverage
-	PYTHONPATH=src $(PYTEST) --cov=src/python_template --cov-report=term --cov-report=json:artifacts/coverage/coverage.json -q
+	PYTHONPATH=src $(PYTEST) --cov=src/design_research_experiments --cov-report=term --cov-report=json:artifacts/coverage/coverage.json -q
 	$(PYTHON) scripts/check_coverage_thresholds.py --coverage-json artifacts/coverage/coverage.json
 
 docstrings-check: check-python

@@ -1,9 +1,8 @@
-python-template
-===================
+design-research-experiments
+===========================
 
-`python-template` is a reusable baseline for typed Python
-packages. It keeps the starting point small while still shipping the same core
-developer ergonomics used in the sibling design research repositories.
+`design-research-experiments` is the study-definition and orchestration layer
+for the Design Research Collective ecosystem.
 
 .. toctree::
    :maxdepth: 2

@@ -1,4 +1,4 @@
-"""Sphinx configuration for the template documentation."""
+"""Sphinx configuration for design-research-experiments documentation."""
 
 from __future__ import annotations
 
@@ -14,9 +14,9 @@ autoclass_content = "both"
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-project = "python-template"
-copyright = "2026, python-template contributors"
-author = "python-template contributors"
+project = "design-research-experiments"
+copyright = "2026, design-research-experiments contributors"
+author = "design-research-experiments contributors"
 
 extensions = [
     "sphinx.ext.autodoc",

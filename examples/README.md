@@ -1,10 +1,10 @@
 # Examples
 
-The examples in this template stay intentionally small.
+These examples demonstrate basic usage of `design-research-experiments`.
 
-- `basic_usage.py` prints the default project blueprint summary.
+- `basic_usage.py` builds a minimal `Study` object and prints its serialized form.
 
-Run it locally with:
+Run locally with:
 
 ```bash
 PYTHONPATH=src python examples/basic_usage.py

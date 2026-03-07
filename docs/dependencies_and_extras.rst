@@ -1,7 +1,9 @@
 Dependencies And Extras
 =======================
 
-The base install intentionally has no required runtime dependencies.
+Runtime dependencies:
+
+- `PyYAML`
 
 The `dev` extra installs the local contributor toolchain:
 
@@ -16,7 +18,7 @@ The `dev` extra installs the local contributor toolchain:
 - `twine`
 - `uv`
 
-Install it with:
+Install with:
 
 .. code-block:: bash
 

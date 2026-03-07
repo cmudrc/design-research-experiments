@@ -3,27 +3,29 @@ requires = ["setuptools>=77", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "python-template"
+name = "design-research-experiments"
 version = "0.1.0"
-description = "An opinionated starter template for typed Python libraries"
+description = "Study-definition and orchestration layer for the cmudrc design research ecosystem"
 readme = "README.md"
 requires-python = ">=3.12"
 license = "MIT"
 license-files = ["LICENSE"]
 authors = [{ name = "The Design Research Collective" }]
 maintainers = [{ name = "Christopher C. McComb", email = "ccm@cmu.edu" }]
-keywords = ["python", "template", "library", "tooling", "design"]
+keywords = ["design", "research", "experiments", "orchestration", "doe"]
 classifiers = [
   "Development Status :: 3 - Alpha",
-  "Intended Audience :: Developers",
+  "Intended Audience :: Science/Research",
   "Programming Language :: Python :: 3 :: Only",
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3.12",
   "Operating System :: OS Independent",
-  "Topic :: Software Development :: Libraries :: Python Modules",
+  "Topic :: Scientific/Engineering",
   "Typing :: Typed",
 ]
-dependencies = []
+dependencies = [
+  "PyYAML>=6.0,<7",
+]
 
 [project.optional-dependencies]
 dev = [
@@ -36,13 +38,17 @@ dev = [
   "sphinx>=7.4,<9",
   "sphinx-rtd-theme>=2.0,<4",
   "twine>=5.1,<7",
+  "types-PyYAML>=6.0,<7",
   "uv>=0.6,<1",
 ]
 
 [project.urls]
-Homepage = "https://github.com/cmudrc/python-template"
-Repository = "https://github.com/cmudrc/python-template"
-Issues = "https://github.com/cmudrc/python-template/issues"
+Homepage = "https://github.com/cmudrc/design-research-experiments"
+Repository = "https://github.com/cmudrc/design-research-experiments"
+Issues = "https://github.com/cmudrc/design-research-experiments/issues"
+
+[project.scripts]
+drexp = "design_research_experiments.cli:main"
 
 [tool.setuptools]
 package-dir = { "" = "src" }
@@ -52,7 +58,7 @@ include-package-data = true
 where = ["src"]
 
 [tool.setuptools.package-data]
-python_template = ["py.typed"]
+design_research_experiments = ["py.typed"]
 
 [tool.pytest.ini_options]
 addopts = "-q"
@@ -79,7 +85,7 @@ convention = "google"
 "tests/*.py" = ["D"]
 
 [tool.mypy]
-packages = ["python_template"]
+packages = ["design_research_experiments"]
 python_version = "3.12"
 warn_unused_configs = true
 check_untyped_defs = true

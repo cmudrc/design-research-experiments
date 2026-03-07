@@ -1,7 +1,7 @@
 API Reference
 =============
 
-.. automodule:: python_template
+.. automodule:: design_research_experiments
    :members:
    :undoc-members:
    :show-inheritance:

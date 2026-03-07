@@ -76,6 +76,8 @@ def test_example_scripts_execute(tmp_path: Path, monkeypatch: object) -> None:
         "basic_usage.py",
         "public_api_walkthrough.py",
         "recipe_overview.py",
+        "recipe_prompt_framing_run.py",
+        "recipe_grammar_scaffold_run.py",
     ):
         runpy.run_path(
             str(Path(__file__).resolve().parents[1] / "examples" / script_name),

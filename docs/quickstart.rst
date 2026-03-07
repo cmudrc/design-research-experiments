@@ -1,79 +1,62 @@
 Quickstart
 ==========
 
-Requires Python 3.12+ and assumes you are working from the repository root.
+This example shows the shortest meaningful path through
+``design-research-experiments``.
 
-Create and activate a virtual environment:
+1. Install
+----------
 
 .. code-block:: bash
 
+   pip install design-research-experiments
+
+Or install from source:
+
+.. code-block:: bash
+
+   git clone https://github.com/cmudrc/design-research-experiments.git
+   cd design-research-experiments
    python -m venv .venv
    source .venv/bin/activate
    python -m pip install --upgrade pip
+   pip install -e .
 
-Path A: Python API (Notebook/Script)
-------------------------------------
+2. Minimal Runnable Example
+---------------------------
 
-Use this when you want study setup and execution in pure Python.
+.. code-block:: python
 
-1. Install development tooling and package dependencies:
+   from design_research_experiments import build_design, build_prompt_framing_study, validate_study
 
-.. code-block:: bash
+   study = build_prompt_framing_study()
+   errors = validate_study(study)
+   if errors:
+       raise RuntimeError("\n".join(errors))
 
-   make dev
+   conditions = build_design(study)
+   print(study.study_id)
+   print(f"conditions: {len(conditions)}")
 
-2. Build and run a compact recipe-backed study:
+3. What Happened
+----------------
 
-.. code-block:: bash
+You defined a full study object, validated methodological consistency, and
+materialized admissible experimental conditions. This is the orchestration
+starting point before binding concrete runs.
 
-   PYTHONPATH=src python examples/recipe_prompt_framing_run.py
-   PYTHONPATH=src python examples/recipe_optimization_benchmark_run.py
+4. Where To Go Next
+-------------------
 
-3. Inspect exported artifacts under ``artifacts/example-prompt-framing/``.
+- :doc:`concepts`
+- :doc:`typical_workflow`
+- :doc:`study_structure_example`
+- :doc:`examples/index`
 
-Path B: CLI
------------
+Ecosystem Note
+--------------
 
-Use this when you want file-based study workflows.
-
-1. Validate a study definition:
-
-.. code-block:: bash
-
-   drexp validate-study path/to/study.yaml
-
-2. Materialize conditions and run:
-
-.. code-block:: bash
-
-   drexp materialize-design path/to/study.yaml
-   drexp run-study path/to/study.yaml
-
-3. Export analysis-ready tables and bundle outputs:
-
-.. code-block:: bash
-
-   drexp export-analysis path/to/study.yaml
-   drexp bundle-results path/to/output_dir
-
-4. Generate standalone DOE tables (full/LHS/fractional):
-
-.. code-block:: bash
-
-   drexp generate-doe --kind lhs --factors-json '{"x": [0, 1], "y": [10, 20]}' --n-samples 12 --out artifacts/doe.csv
-
-Checks and Docs
----------------
-
-.. code-block:: bash
-
-   make test
-   make docs-check
-   make docs-build
-
-Next Steps
-----------
-
-- Install profiles and maintainer release checks: :doc:`dependencies_and_extras`
-- Runnable examples and recipe scripts: :doc:`examples/index`
-- Curated top-level API surface: :doc:`api`
+In a typical study, ``design-research-agents`` provides executable
+participants, ``design-research-problems`` supplies the task,
+``design-research-experiments`` defines the study structure, and
+``design-research-analysis`` interprets the resulting records.

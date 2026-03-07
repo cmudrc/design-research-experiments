@@ -12,6 +12,9 @@ maps directly to ``design_research_experiments.__all__``.
 Module Map
 ----------
 
+For command-line usage, see :doc:`../cli_reference`.
+
+
 Primary modules and responsibilities:
 
 - ``design_research_experiments.study``: study/run schemas and validation.

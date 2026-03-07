@@ -1,57 +1,94 @@
 design-research-experiments
 ===========================
 
-A hypothesis-first orchestration layer for design research studies.
+The study-design and orchestration layer for reproducible design research.
 
-Use it to:
+What This Library Does
+----------------------
 
-- define reproducible studies with explicit hypotheses and analysis mappings,
-- materialize admissible DOE conditions with constraints and blocking, and
-- execute studies to canonical artifacts that flow directly into analysis.
+``design-research-experiments`` defines study structure: hypotheses, factors,
+blocking, admissible conditions, replications, and artifact flows. It
+coordinates how agents, problems, and downstream analysis are connected in a
+controlled experimental pipeline.
 
 Highlights
 ----------
 
-- Typed schemas for study design, hypotheses, outcomes, and run metadata.
-- DOE builders for full factorial, constrained factorial, randomized block,
-  repeated measures, latin square, and custom design matrices.
-- Reproducible runners with deterministic seeds, checkpointing, and resume.
-- Canonical artifact contracts for study manifests, runs, events, and evaluations.
-- Thin adapters aligned to public APIs in sibling agent/problem/analysis libraries.
+- Hypothesis schemas
+- DOE builders
+- Condition generation
+- Run orchestration
+- Replication control
+- Artifact export
+
+This library is the methodological control layer of the ecosystem. It is not
+just another execution utility. It encodes experimental method in software and
+is where design choices about rigor, admissibility, and reproducibility are made.
 
 Typical Workflow
 ----------------
 
-1. Define a ``Study`` with factors, blocks, constraints, and hypotheses.
-2. Materialize admissible conditions from the study design.
-3. Execute runs across agent/problem combinations with replications.
-4. Export canonical artifacts and hand off to downstream analysis.
+1. Define hypotheses, factors, outcomes, and constraints.
+2. Materialize admissible conditions from the chosen DOE strategy.
+3. Bind agent and problem references.
+4. Execute runs and replications under explicit seed policy and budgets.
+5. Export canonical artifacts for analysis and reporting.
+
+Integration With The Ecosystem
+------------------------------
+
+The Design Research Collective maintains a modular ecosystem of libraries for
+studying human and AI design behavior.
+
+- **design-research-agents** implements AI participants, workflows, and tool-using reasoning patterns.
+- **design-research-problems** provides benchmark design tasks, prompts, grammars, and evaluators.
+- **design-research-analysis** analyzes the traces, event tables, and outcomes generated during studies.
+- **design-research-experiments** sits above the stack as the study-design and orchestration layer, defining hypotheses, factors, conditions, replications, and artifact flows across agents, problems, and analysis.
+
+Together these libraries support end-to-end design research pipelines, from
+study design through execution and interpretation.
+
+.. image:: _static/ecosystem-platform.svg
+   :alt: Ecosystem diagram showing experiments above agents, problems, and analysis.
+   :width: 100%
+   :align: center
 
 Start Here
 ----------
 
-- :doc:`quickstart` for a compact end-to-end path.
-- :doc:`dependencies_and_extras` for install profiles and maintainer checks.
-- :doc:`examples/index` for generated runnable-script documentation.
-- :doc:`api` for the curated top-level public API.
-- :doc:`reference/index` for reference orientation and module map.
+- :doc:`quickstart`
+- :doc:`installation`
+- :doc:`concepts`
+- :doc:`typical_workflow`
+- :doc:`examples/index`
+- :doc:`api`
 - `CONTRIBUTING.md <https://github.com/cmudrc/design-research-experiments/blob/main/CONTRIBUTING.md>`_
-  for contribution workflow and quality expectations.
 
 .. toctree::
    :maxdepth: 2
-   :caption: Guides
+   :caption: Documentation
    :hidden:
 
    quickstart
-   examples_and_recipes
-   dependencies_and_extras
+   installation
+   concepts
+   typical_workflow
    examples/index
+   api
 
 .. toctree::
    :maxdepth: 2
-   :caption: Reference
+   :caption: Development
    :hidden:
 
-   api
+   dependencies_and_extras
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Additional Guides
+   :hidden:
+
+   study_structure_example
+   examples_and_recipes
+   cli_reference
    reference/index

@@ -1,11 +1,52 @@
 Examples Guide
 ==============
 
-Per-example documentation is generated directly from top-of-file docstrings
-in runnable scripts under ``examples/``.
+The examples in this repository are runnable research-oriented scripts. They are
+designed to show not only API usage, but how the library fits into realistic
+experimental workflows. Each example lists dependencies, expected scope, and
+the primary concept it demonstrates.
 
-Categories
-----------
+Featured Examples
+-----------------
+
+Basic Usage
+~~~~~~~~~~~
+
+Construct and execute a compact study definition.
+
+**Requires:** base install
+**Runtime:** short
+**Teaches:** study schema basics, condition materialization, run orchestration baseline
+
+DOE Capabilities
+~~~~~~~~~~~~~~~~
+
+Generate and inspect multiple DOE strategies.
+
+**Requires:** base install
+**Runtime:** short
+**Teaches:** design-type selection, condition-space control, DOE interpretation
+
+Recipe Prompt Framing Run
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Instantiate and execute a recipe-backed prompt-framing study.
+
+**Requires:** base install (plus sibling packages for full execution)
+**Runtime:** medium
+**Teaches:** recipe configuration, checkpointed run flow, canonical artifact outputs
+
+Recipe Optimization Benchmark Run
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Run a recipe-configured optimization benchmarking study.
+
+**Requires:** base install (plus sibling packages for full execution)
+**Runtime:** medium
+**Teaches:** benchmark study composition, replication control, analysis export path
+
+Full Catalog
+------------
 
 .. toctree::
    :maxdepth: 2

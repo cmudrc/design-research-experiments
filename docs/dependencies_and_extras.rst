@@ -1,52 +1,51 @@
 Dependencies and Extras
 =======================
 
-The project keeps runtime dependencies minimal and pushes contributor tooling
-into the development profile.
-
 Core Install
 ------------
 
 .. code-block:: bash
 
-   pip install -e .
+   pip install design-research-experiments
 
-Runtime dependency:
+Editable contributor setup:
 
-- ``PyYAML`` for study YAML serialization/deserialization.
+.. code-block:: bash
 
-Development Install
--------------------
+   git clone https://github.com/cmudrc/design-research-experiments.git
+   cd design-research-experiments
+   python -m venv .venv
+   source .venv/bin/activate
+   python -m pip install --upgrade pip
+   pip install -e ".[dev]"
+
+Or use:
 
 .. code-block:: bash
 
    make dev
 
-This installs linting, typing, testing, docs, and release-check tooling.
+Extras Matrix
+-------------
 
-Reproducible Install
---------------------
+.. list-table::
+   :header-rows: 1
 
-.. code-block:: bash
+   * - Extra
+     - Purpose
+   * - ``dev``
+     - Contributor tooling and documentation/test gates
 
-   make repro REPRO_EXTRAS="dev"
+This package intentionally keeps runtime dependencies narrow because it sits at
+methodological orchestration level and integrates sibling libraries through
+adapters. In most projects, richer capability profiles are selected in
+``design-research-agents``, ``design-research-problems``, and
+``design-research-analysis`` rather than in this package itself.
 
-The frozen install uses ``uv.lock`` and pinned interpreter ``3.12.12``.
+Recommended install profiles:
 
-Maintainer Release Baseline
----------------------------
+- study design and orchestration only: base install
+- local development and validation: ``pip install -e ".[dev]"``
 
-Use this flow before tagging a release:
-
-1. Use Python ``3.12.12`` (from ``.python-version``).
-2. Regenerate lock data: ``make lock``.
-3. Verify frozen install and checks: ``make repro REPRO_EXTRAS=\"dev\"`` and ``make ci``.
-4. Build artifacts and validate metadata: ``make release-check``.
-5. Commit lock/dependency updates before tagging.
-
-Notes
------
-
-- The package currently exposes one optional dependency profile: ``dev``.
-- SQLite export support uses the Python standard library ``sqlite3`` module
-  and does not require an extra package.
+Reproducible and release flows are exposed via ``make repro``, ``make lock``,
+and ``make release-check``.

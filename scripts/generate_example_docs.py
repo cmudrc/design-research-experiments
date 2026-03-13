@@ -250,6 +250,18 @@ def _render_examples_index() -> str:
                 "run orchestration baseline"
             ),
             "",
+            "Monty Hall Simulation",
+            "~~~~~~~~~~~~~~~~~~~~~",
+            "",
+            "Run a tiny randomized probability simulation with the core study API.",
+            "",
+            "**Requires:** base install",
+            "**Runtime:** short",
+            (
+                "**Teaches:** reproducible RNG, condition-level simulation, "
+                "summary artifact generation"
+            ),
+            "",
             "DOE Capabilities",
             "~~~~~~~~~~~~~~~~",
             "",

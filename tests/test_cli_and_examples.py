@@ -102,6 +102,7 @@ def test_example_scripts_execute(tmp_path: Path, monkeypatch: object) -> None:
 
     for script_name in (
         "basic_usage.py",
+        "monty_hall_simulation.py",
         "public_api_walkthrough.py",
         "doe_capabilities.py",
         "recipe_overview.py",
@@ -126,3 +127,25 @@ def test_examples_use_top_level_import_convention() -> None:
         assert import_pattern.search(text) is not None, (
             f"Top-level alias import missing in {path.name}"
         )
+
+
+def test_monty_hall_example_reports_switching_advantage(
+    tmp_path: Path, monkeypatch: object, capsys: object
+) -> None:
+    """The Monty Hall example should report the expected switching advantage."""
+    monkeypatch.chdir(tmp_path)
+
+    runpy.run_path(
+        str(Path(__file__).resolve().parents[1] / "examples" / "monty_hall_simulation.py"),
+        run_name="__main__",
+    )
+
+    output = capsys.readouterr().out
+    csv_path = tmp_path / "artifacts" / "monty-hall" / "simulation_summary.csv"
+
+    assert "Materialized 2 conditions" in output
+    assert "Simulated 100 games per condition with seed 5" in output
+    assert "stay wins 35/100 = 0.35" in output
+    assert "switch wins 65/100 = 0.65" in output
+    assert csv_path.exists()
+    assert len(csv_io.read_csv(csv_path)) == 2

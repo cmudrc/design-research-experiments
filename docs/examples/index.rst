@@ -18,6 +18,15 @@ Construct and execute a compact study definition.
 **Runtime:** short
 **Teaches:** study schema basics, condition materialization, run orchestration baseline
 
+Monty Hall Simulation
+~~~~~~~~~~~~~~~~~~~~~
+
+Run a tiny randomized probability simulation with the core study API.
+
+**Requires:** base install
+**Runtime:** short
+**Teaches:** reproducible RNG, condition-level simulation, summary artifact generation
+
 DOE Capabilities
 ~~~~~~~~~~~~~~~~
 

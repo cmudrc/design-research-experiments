@@ -12,54 +12,41 @@ This library is the methodological control layer of the ecosystem. It is not
 just another execution utility. It encodes experimental method in software and
 is where design choices about rigor, admissibility, and reproducibility are made.
 
-.. container:: docs-callout
+.. note::
 
-   .. container:: docs-callout-body
+   **Start with** :doc:`quickstart` to validate a first study, materialize a
+   design, and get the package into a runnable local loop before you dive into
+   the deeper methodology and reference material.
 
-      **Start with** :doc:`quickstart` to validate a first study, materialize a
-      design, and get the package into a runnable local loop before you dive into
-      the deeper methodology and reference material.
+Guides
+------
 
-.. container:: docs-grid
+Learn the study-design vocabulary, setup flow, and reproducible workflow
+patterns that shape a clean experiment.
 
-   .. container:: docs-card
+- :doc:`guides/index`
+- :doc:`quickstart`
+- :doc:`typical_workflow`
 
-      .. container:: docs-card-body
+Examples
+--------
 
-         **Guides**
+Browse runnable examples that show the API in action, from small study
+definitions to recipe-backed runs.
 
-         Learn the study-design vocabulary, setup flow, and reproducible workflow
-         patterns that shape a clean experiment.
+- :doc:`examples/index`
+- :doc:`examples/core/basic_usage`
+- :doc:`examples/recipes/recipe_prompt_framing_run`
 
-         - :doc:`guides/index`
-         - :doc:`quickstart`
-         - :doc:`typical_workflow`
+Reference
+---------
 
-   .. container:: docs-card
+Look up the stable import surface, CLI behavior, and the package areas
+responsible for study structure, design materialization, and reporting.
 
-      .. container:: docs-card-body
-
-         **Examples**
-
-         Browse runnable examples that show the API in action, from small study
-         definitions to recipe-backed runs.
-
-         - :doc:`examples/index`
-         - :doc:`examples/core/basic_usage`
-         - :doc:`examples/recipes/recipe_prompt_framing_run`
-
-   .. container:: docs-card
-
-      .. container:: docs-card-body
-
-         **Reference**
-
-         Look up the stable import surface, CLI behavior, and the package areas
-         responsible for study structure, design materialization, and reporting.
-
-         - :doc:`reference/index`
-         - :doc:`api`
-         - :doc:`cli_reference`
+- :doc:`reference/index`
+- :doc:`api`
+- :doc:`cli_reference`
 
 The Design Research Collective maintains a modular ecosystem for studying human
 and AI design behavior. ``design-research-experiments`` sits above agents,

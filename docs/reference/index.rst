@@ -4,37 +4,27 @@ Reference
 Use this section when you need the exact public contract, command-line behavior,
 or a quick map of where each part of the package is implemented.
 
-.. container:: docs-callout
+.. note::
 
-   .. container:: docs-callout-body
+   **Use the API page for imports and the CLI page for commands.** The module
+   map below is the fastest way to orient yourself when you need to connect a
+   concept in the docs to a concrete package area.
 
-      **Use the API page for imports and the CLI page for commands.** The module
-      map below is the fastest way to orient yourself when you need to connect a
-      concept in the docs to a concrete package area.
+Public API
+----------
 
-.. container:: docs-grid docs-grid--two
+The compatibility-guaranteed import surface maps directly to
+``design_research_experiments.__all__``.
 
-   .. container:: docs-card
+- :doc:`../api`
 
-      .. container:: docs-card-body
+CLI Reference
+-------------
 
-         **Public API**
+Review subcommands for study validation, design materialization,
+execution, resume flow, and export tasks.
 
-         The compatibility-guaranteed import surface maps directly to
-         ``design_research_experiments.__all__``.
-
-         - :doc:`../api`
-
-   .. container:: docs-card
-
-      .. container:: docs-card-body
-
-         **CLI reference**
-
-         Review subcommands for study validation, design materialization,
-         execution, resume flow, and export tasks.
-
-         - :doc:`../cli_reference`
+- :doc:`../cli_reference`
 
 Primary modules and responsibilities:
 

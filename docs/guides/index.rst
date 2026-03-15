@@ -5,50 +5,37 @@ Use the guides to move from initial setup to a reproducible study-design
 workflow. This section is where the package explains its methodological model,
 not just its syntax.
 
-.. container:: docs-callout
+.. note::
 
-   .. container:: docs-callout-body
+   **New here?** Start with :doc:`../quickstart`, then use
+   :doc:`../concepts` and :doc:`../study_structure_example` to understand how
+   hypotheses, factors, admissibility, and replication fit together.
 
-      **New here?** Start with :doc:`../quickstart`, then use
-      :doc:`../concepts` and :doc:`../study_structure_example` to understand how
-      hypotheses, factors, admissibility, and replication fit together.
+Get Started
+-----------
 
-.. container:: docs-grid
+Set up the package locally and get to a runnable, validated first study.
 
-   .. container:: docs-card
+- :doc:`../quickstart`
+- :doc:`../installation`
+- :doc:`../dependencies_and_extras`
 
-      .. container:: docs-card-body
+Study Design
+------------
 
-         **Get started**
+Learn the core objects and see how a full study definition is structured.
 
-         Set up the package locally and get to a runnable, validated first study.
+- :doc:`../concepts`
+- :doc:`../study_structure_example`
 
-         - :doc:`../quickstart`
-         - :doc:`../installation`
-         - :doc:`../dependencies_and_extras`
+Workflow
+--------
 
-   .. container:: docs-card
+Understand the repeatable path from study definition through execution
+planning and into the runnable examples section.
 
-      .. container:: docs-card-body
-
-         **Study design**
-
-         Learn the core objects and see how a full study definition is structured.
-
-         - :doc:`../concepts`
-         - :doc:`../study_structure_example`
-
-   .. container:: docs-card
-
-      .. container:: docs-card-body
-
-         **Workflow**
-
-         Understand the repeatable path from study definition through execution
-         planning and into the runnable examples section.
-
-         - :doc:`../typical_workflow`
-         - :doc:`../examples/index`
+- :doc:`../typical_workflow`
+- :doc:`../examples/index`
 
 For contribution workflow and maintainer expectations, see `CONTRIBUTING.md
 <https://github.com/cmudrc/design-research-experiments/blob/main/CONTRIBUTING.md>`_.

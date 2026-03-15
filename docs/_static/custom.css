@@ -1,9 +1,27 @@
 :root {
   --drc-docs-accent: #57b7ba;
+  --drc-docs-border: rgb(15 23 42 / 0.08);
+}
+
+html[data-theme="light"] {
   --pst-color-primary: var(--drc-docs-accent);
-  --pst-color-link: var(--drc-docs-accent);
-  --pst-color-link-hover: var(--drc-docs-accent);
   --pst-color-accent: var(--drc-docs-accent);
+  --pst-color-link: #3f8f92;
+  --pst-color-link-hover: #2f6f72;
+  --pst-color-secondary: #6b7280;
+  --pst-color-background: #fafaf8;
+  --pst-color-surface: #ffffff;
+}
+
+html[data-theme="dark"] {
+  --drc-docs-border: rgb(148 163 184 / 0.2);
+  --pst-color-primary: #79d0d2;
+  --pst-color-accent: #79d0d2;
+  --pst-color-link: #79d0d2;
+  --pst-color-link-hover: #a6e6e8;
+  --pst-color-secondary: #9aa4ad;
+  --pst-color-background: #111716;
+  --pst-color-surface: #161d1d;
 }
 
 .navbar-brand img {
@@ -39,7 +57,7 @@
 
 .docs-card {
   background: var(--pst-color-surface);
-  border: 1px solid rgb(15 23 42 / 0.08);
+  border: 1px solid var(--drc-docs-border);
   border-radius: 1.1rem;
   box-shadow: 0 8px 24px rgb(15 23 42 / 0.06);
   padding: 1.15rem 1.15rem 1rem;
@@ -50,6 +68,7 @@
 }
 
 .docs-card > p:first-child strong {
+  color: var(--pst-color-primary);
   font-size: 1.02rem;
 }
 

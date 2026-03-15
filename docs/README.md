@@ -17,8 +17,9 @@ Run `make docstrings-check` before merge.
 
 ## Page-Writing Conventions
 
-- Keep homepages in this order: title, tagline, what it does, highlights, typical workflow, ecosystem integration, choose your path, start here.
-- Keep the hidden home-page toctrees grouped as guides, examples, reference, then development so PyData navigation stays consistent across repos.
+- Keep the homepage short: title, tagline, concise framing, quickstart callout, section cards, and only the minimum ecosystem/contribution notes needed for orientation.
+- Keep the root hidden home-page toctree section-first: `guides/index`, `examples/index`, and `reference/index`.
+- Keep section landing pages concise and card-driven so the header stays stable and the sidebar owns leaf-page discovery.
 - Keep methodological framing explicit: this package encodes study logic, not just execution utilities.
 - Use complete runnable snippets with visible outputs.
 

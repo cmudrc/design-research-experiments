@@ -56,9 +56,9 @@ else:
                 "icon": "fa-brands fa-github",
             },
         ],
-        "navbar_align": "left",
-        "header_links_before_dropdown": 8,
-        "show_nav_level": 1,
+        "navbar_align": "content",
+        "header_links_before_dropdown": 3,
+        "show_nav_level": 2,
         "navigation_with_keys": True,
         "show_prev_next": False,
         "secondary_sidebar_items": ["page-toc"],
@@ -69,7 +69,16 @@ html_css_files = ["custom.css"]
 html_logo = "drc.png"
 html_favicon = "_static/favicon.ico"
 html_title = project
-html_sidebars = {"index": []} if html_theme == "pydata_sphinx_theme" else {}
+html_sidebars = (
+    {
+        "index": [],
+        "guides/index": [],
+        "examples/index": [],
+        "reference/index": [],
+    }
+    if html_theme == "pydata_sphinx_theme"
+    else {}
+)
 
 _VIEWPORT_META_RE = re.compile(r'<meta name="viewport"[^>]*>', re.IGNORECASE)
 

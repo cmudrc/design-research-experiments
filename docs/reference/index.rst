@@ -1,19 +1,34 @@
 Reference
 =========
 
-This reference section complements the top-level API contract.
+Use this section when you need the exact public contract, command-line behavior,
+or a quick map of where each part of the package is implemented.
 
-Public Surface
---------------
+.. container:: docs-callout
 
-The compatibility-guaranteed import surface is documented in :doc:`../api` and
-maps directly to ``design_research_experiments.__all__``.
+   **Use the API page for imports and the CLI page for commands.** The module
+   map below is the fastest way to orient yourself when you need to connect a
+   concept in the docs to a concrete package area.
 
-Module Map
-----------
+.. container:: docs-grid docs-grid--two
 
-For command-line usage, see :doc:`../cli_reference`.
+   .. container:: docs-card
 
+      **Public API**
+
+      The compatibility-guaranteed import surface maps directly to
+      ``design_research_experiments.__all__``.
+
+      - :doc:`../api`
+
+   .. container:: docs-card
+
+      **CLI reference**
+
+      Review subcommands for study validation, design materialization,
+      execution, resume flow, and export tasks.
+
+      - :doc:`../cli_reference`
 
 Primary modules and responsibilities:
 
@@ -26,3 +41,10 @@ Primary modules and responsibilities:
 - ``design_research_experiments.recipes``: reusable function-based study templates.
 - ``design_research_experiments.adapters``: integration glue for agents/problems/analysis.
 - ``design_research_experiments.io``: YAML/JSON/CSV/SQLite persistence helpers.
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+
+   ../api
+   ../cli_reference

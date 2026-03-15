@@ -48,7 +48,11 @@ except ImportError:
 else:
     html_theme = "pydata_sphinx_theme"
     html_theme_options = {
-        "logo": {"text": project},
+        "logo": {
+            "text": project,
+            "image_light": "_static/drc-light.png",
+            "image_dark": "_static/drc-dark.png",
+        },
         "icon_links": [
             {
                 "name": "GitHub",
@@ -66,7 +70,7 @@ else:
 
 html_static_path = ["_static"]
 html_css_files = ["custom.css"]
-html_logo = "drc.png"
+html_logo = "_static/drc-light.png"
 html_favicon = "_static/favicon.ico"
 html_title = project
 html_sidebars = (

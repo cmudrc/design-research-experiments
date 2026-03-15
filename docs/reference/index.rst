@@ -6,29 +6,35 @@ or a quick map of where each part of the package is implemented.
 
 .. container:: docs-callout
 
-   **Use the API page for imports and the CLI page for commands.** The module
-   map below is the fastest way to orient yourself when you need to connect a
-   concept in the docs to a concrete package area.
+   .. container:: docs-callout-body
+
+      **Use the API page for imports and the CLI page for commands.** The module
+      map below is the fastest way to orient yourself when you need to connect a
+      concept in the docs to a concrete package area.
 
 .. container:: docs-grid docs-grid--two
 
    .. container:: docs-card
 
-      **Public API**
+      .. container:: docs-card-body
 
-      The compatibility-guaranteed import surface maps directly to
-      ``design_research_experiments.__all__``.
+         **Public API**
 
-      - :doc:`../api`
+         The compatibility-guaranteed import surface maps directly to
+         ``design_research_experiments.__all__``.
+
+         - :doc:`../api`
 
    .. container:: docs-card
 
-      **CLI reference**
+      .. container:: docs-card-body
 
-      Review subcommands for study validation, design materialization,
-      execution, resume flow, and export tasks.
+         **CLI reference**
 
-      - :doc:`../cli_reference`
+         Review subcommands for study validation, design materialization,
+         execution, resume flow, and export tasks.
+
+         - :doc:`../cli_reference`
 
 Primary modules and responsibilities:
 

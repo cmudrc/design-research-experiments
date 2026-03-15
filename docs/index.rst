@@ -53,42 +53,75 @@ study design through execution and interpretation.
    :width: 100%
    :align: center
 
+Choose Your Path
+----------------
+
+Define studies
+~~~~~~~~~~~~~~
+
+Start with :doc:`quickstart`, :doc:`concepts`, and
+:doc:`study_structure_example` when you are shaping hypotheses, factors,
+constraints, and replications.
+
+Run experiments
+~~~~~~~~~~~~~~~
+
+Use :doc:`typical_workflow`, :doc:`examples/index`, and
+:doc:`cli_reference` when you are ready to materialize conditions, execute
+recipe-backed runs, and move artifacts through the stack.
+
+Inspect outputs
+~~~~~~~~~~~~~~~
+
+Use :doc:`api`, :doc:`reference/index`, and the runnable examples when you want
+to understand the public contract, exported artifacts, and integration points.
+
 Start Here
 ----------
 
 - :doc:`quickstart`
 - :doc:`installation`
+- :doc:`dependencies_and_extras`
 - :doc:`concepts`
+- :doc:`study_structure_example`
 - :doc:`typical_workflow`
 - :doc:`examples/index`
+- :doc:`cli_reference`
 - :doc:`api`
 - `CONTRIBUTING.md <https://github.com/cmudrc/design-research-experiments/blob/main/CONTRIBUTING.md>`_
 
 .. toctree::
    :maxdepth: 2
-   :caption: Documentation
+   :caption: Guides
    :hidden:
 
    quickstart
    installation
+   dependencies_and_extras
    concepts
+   study_structure_example
    typical_workflow
-   examples/index
-   api
 
 .. toctree::
    :maxdepth: 2
+   :caption: Examples
+   :hidden:
+
+   examples/index
+   examples_and_recipes
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Reference
+   :hidden:
+
+   cli_reference
+   api
+   reference/index
+
+.. toctree::
+   :maxdepth: 1
    :caption: Development
    :hidden:
 
-   dependencies_and_extras
-
-.. toctree::
-   :maxdepth: 2
-   :caption: Additional Guides
-   :hidden:
-
-   study_structure_example
-   examples_and_recipes
-   cli_reference
-   reference/index
+   CONTRIBUTING.md <https://github.com/cmudrc/design-research-experiments/blob/main/CONTRIBUTING.md>

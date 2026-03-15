@@ -1,26 +1,55 @@
 :root {
-  --drc-docs-nav-accent: #57B7BA;
+  --drc-docs-nav-accent: #57b7ba;
+  --drc-docs-nav-deep: #0b5563;
+  --pst-color-primary: #0b5563;
+  --pst-color-link: #0b5563;
+  --pst-color-link-hover: #083d47;
+  --pst-color-accent: #57b7ba;
 }
 
-.wy-side-nav-search > a.icon.icon-home {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.5rem;
-  text-align: center;
+html[data-theme="light"] {
+  --pst-color-surface: #f5fbfb;
 }
 
-.wy-side-nav-search > a.icon.icon-home::before {
-  display: none;
+html[data-theme="dark"] {
+  --pst-color-primary: #7bd3d5;
+  --pst-color-link: #7bd3d5;
+  --pst-color-link-hover: #a8e5e7;
+  --pst-color-accent: #a8e5e7;
 }
 
-.wy-side-nav-search > a.icon.icon-home img.logo {
-  order: -1;
-  margin: 0;
+.bd-header {
+  background: linear-gradient(
+    90deg,
+    var(--drc-docs-nav-deep) 0%,
+    var(--drc-docs-nav-accent) 100%
+  );
+  box-shadow: inset 0 -1px 0 rgb(255 255 255 / 0.14);
 }
 
-.wy-side-nav-search,
-.wy-nav-top {
-  background-color: var(--drc-docs-nav-accent);
+.bd-header .navbar-brand,
+.bd-header .navbar-brand:hover,
+.bd-header .navbar-brand .title,
+.bd-header .nav-link,
+.bd-header .nav-link:hover,
+.bd-header .btn,
+.bd-header .btn:hover,
+.bd-header .btn__icon-container {
+  color: #fff;
 }
 
+.navbar-brand img {
+  max-height: 3rem;
+}
+
+.bd-sidebar-primary {
+  border-right: 1px solid rgb(87 183 186 / 0.22);
+}
+
+.bd-content a {
+  text-decoration-thickness: 0.08em;
+}
+
+.bd-content a:hover {
+  text-decoration-thickness: 0.14em;
+}

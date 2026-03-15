@@ -39,6 +39,11 @@ def extract_toctree_entries(index_path: Path) -> tuple[str, ...]:
     return tuple(entries)
 
 
+def is_external_toctree_entry(entry: str) -> bool:
+    """Return whether a toctree entry points to an external URL."""
+    return "://" in entry
+
+
 def validate_docs_tree() -> list[str]:
     """Collect any missing or inconsistent documentation references.
 
@@ -53,6 +58,8 @@ def validate_docs_tree() -> list[str]:
         return errors
 
     for entry in extract_toctree_entries(INDEX_PATH):
+        if is_external_toctree_entry(entry):
+            continue
         if not (DOCS_DIR / f"{entry}.rst").exists():
             errors.append(f"docs/index.rst references missing document: {entry}.rst")
 

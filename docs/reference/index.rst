@@ -14,7 +14,9 @@ Public API
 ----------
 
 The compatibility-guaranteed import surface maps directly to
-``design_research_experiments.__all__``.
+``design_research_experiments.__all__``. The API reference is grouped by
+responsibility so you can move from the core study model into recipes, design
+execution, and reporting without reading one flat symbol dump.
 
 - :doc:`../api`
 

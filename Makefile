@@ -6,6 +6,7 @@ MYPY ?= $(PYTHON) -m mypy
 SPHINX ?= $(PYTHON) -m sphinx
 BUILD ?= $(PYTHON) -m build
 TWINE ?= $(PYTHON) -m twine
+COVERAGE_MIN ?= 90
 
 .PHONY: help check-python dev install-dev \
 	lint fmt fmt-check type test qa coverage docstrings-check \
@@ -49,8 +50,8 @@ qa: lint fmt-check type test
 
 coverage: check-python
 	mkdir -p artifacts/coverage
-	PYTHONPATH=src $(PYTEST) --cov=src/design_research_experiments --cov-report=term --cov-report=json:artifacts/coverage/coverage.json -q
-	$(PYTHON) scripts/check_coverage_thresholds.py --coverage-json artifacts/coverage/coverage.json
+	PYTHONPATH=src $(PYTEST) --cov=src/design_research_experiments --cov-fail-under=$(COVERAGE_MIN) --cov-report=term --cov-report=json:artifacts/coverage/coverage.json -q
+	$(PYTHON) scripts/check_coverage_thresholds.py --coverage-json artifacts/coverage/coverage.json --minimum $(COVERAGE_MIN)
 
 docstrings-check: check-python
 	$(PYTHON) scripts/check_google_docstrings.py

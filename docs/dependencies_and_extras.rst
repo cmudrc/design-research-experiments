@@ -25,7 +25,7 @@ Or use:
 
    make dev
 
-Maintainer workflows target Python ``3.12.12`` from ``.python-version``.
+Maintainer workflows target Python ``3.12`` from ``.python-version``.
 
 Extras Matrix
 -------------

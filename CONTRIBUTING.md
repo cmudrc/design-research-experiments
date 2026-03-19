@@ -8,7 +8,7 @@ source .venv/bin/activate
 make dev
 ```
 
-The preferred maintainer interpreter is pinned in `.python-version` (`3.12.12`).
+The preferred maintainer interpreter is set in `.python-version` (`3.12`).
 
 Before cutting a release, run:
 

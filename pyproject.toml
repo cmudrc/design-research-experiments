@@ -39,7 +39,6 @@ dev = [
   "sphinx-rtd-theme>=2.0,<4",
   "twine>=5.1,<7",
   "types-PyYAML>=6.0,<7",
-  "uv>=0.6,<1",
 ]
 
 [project.urls]

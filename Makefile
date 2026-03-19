@@ -6,11 +6,8 @@ MYPY ?= $(PYTHON) -m mypy
 SPHINX ?= $(PYTHON) -m sphinx
 BUILD ?= $(PYTHON) -m build
 TWINE ?= $(PYTHON) -m twine
-UV ?= $(if $(wildcard .venv/bin/uv),.venv/bin/uv,uv)
-REPRO_PYTHON ?= $(shell cat .python-version 2>/dev/null || echo 3.12.12)
-REPRO_EXTRAS ?= dev
 
-.PHONY: help check-python check-uv dev install-dev repro lock \
+.PHONY: help check-python dev install-dev \
 	lint fmt fmt-check type test qa coverage docstrings-check \
 	run-example docs docs-build docs-check docs-linkcheck \
 	release-check ci clean
@@ -18,8 +15,6 @@ REPRO_EXTRAS ?= dev
 help:
 	@echo "Common targets:"
 	@echo "  dev              Install the project in editable mode with dev dependencies."
-	@echo "  repro            Frozen reproducible install using uv.lock."
-	@echo "  lock             Regenerate uv.lock."
 	@echo "  test             Run the pytest suite."
 	@echo "  qa               Run lint, fmt-check, type, and test."
 	@echo "  run-example      Execute the bundled example script."
@@ -29,20 +24,11 @@ help:
 check-python:
 	@$(PYTHON) -c "import pathlib, sys; print(f'Using Python {sys.version.split()[0]} at {pathlib.Path(sys.executable)}'); raise SystemExit(0 if sys.version_info >= (3, 12) else 1)" || (echo "Python >= 3.12 is required by pyproject.toml"; exit 1)
 
-check-uv:
-	@command -v $(UV) >/dev/null 2>&1 || (echo "uv is required for lock/repro targets. Install it from https://docs.astral.sh/uv/getting-started/installation/"; exit 1)
-
 dev:
 	$(PIP) install --upgrade pip setuptools wheel
 	$(PIP) install -e ".[dev]"
 
 install-dev: dev
-
-repro: check-uv
-	$(UV) sync --frozen --python $(REPRO_PYTHON) $(foreach extra,$(REPRO_EXTRAS),--extra $(extra))
-
-lock: check-uv
-	$(UV) lock --python $(REPRO_PYTHON)
 
 lint: check-python
 	$(RUFF) check .

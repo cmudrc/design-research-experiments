@@ -14,7 +14,6 @@ materialization and run-artifact contracts.
   - `source .venv/bin/activate`
 - The reproducible interpreter target lives in `.python-version` (`3.12.12`).
 - Install local tooling with `make dev`.
-- For a frozen environment based on `uv.lock`, use `make repro`.
 
 ## Testing And Validation
 

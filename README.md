@@ -33,7 +33,7 @@ This package centers on reproducible experiment structure and execution:
 ## Quickstart
 
 Requires Python 3.12+.
-Reproducible release installs are pinned to Python `3.12.12` (`.python-version`).
+Maintainer workflows target Python `3.12.12` (`.python-version`).
 
 ```bash
 python -m venv .venv

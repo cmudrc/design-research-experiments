@@ -8,11 +8,12 @@ source .venv/bin/activate
 make dev
 ```
 
-For a reproducible install based on `uv.lock`:
+The preferred maintainer interpreter is pinned in `.python-version` (`3.12.12`).
+
+Before cutting a release, run:
 
 ```bash
-make lock
-make repro
+make release-check
 ```
 
 ## Local Quality Checks

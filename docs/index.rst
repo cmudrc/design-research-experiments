@@ -3,36 +3,54 @@ design-research-experiments
 
 The study-design and orchestration layer for reproducible design research.
 
-What This Library Does
-----------------------
-
 ``design-research-experiments`` defines study structure: hypotheses, factors,
 blocking, admissible conditions, replications, and artifact flows. It
 coordinates how agents, problems, and downstream analysis are connected in a
 controlled experimental pipeline.
 
-Highlights
-----------
-
-- Hypothesis schemas
-- DOE builders
-- Condition generation
-- Run orchestration
-- Replication control
-- Artifact export
-
 This library is the methodological control layer of the ecosystem. It is not
 just another execution utility. It encodes experimental method in software and
-is where design choices about rigor, admissibility, and reproducibility are made.
+is where design choices about rigor, admissibility, and reproducibility are
+made.
 
-Typical Workflow
-----------------
+.. note::
 
-1. Define hypotheses, factors, outcomes, and constraints.
-2. Materialize admissible conditions from the chosen DOE strategy.
-3. Bind agent and problem references.
-4. Execute runs and replications under explicit seed policy and budgets.
-5. Export canonical artifacts for analysis and reporting.
+   **Start with** :doc:`quickstart` to define a first study, materialize a
+   concrete condition set, and get into a reproducible local loop before
+   branching into examples, recipes, and reference material.
+
+Guides
+------
+
+Learn the study-modeling concepts, setup flow, and orchestration patterns that
+shape a stable experimental pipeline.
+
+- :doc:`quickstart`
+- :doc:`installation`
+- :doc:`concepts`
+- :doc:`typical_workflow`
+- :doc:`study_structure_example`
+- :doc:`examples_and_recipes`
+
+Examples
+--------
+
+Browse runnable examples that show the public API in action across the major
+study-definition and execution surfaces.
+
+- :doc:`examples/index`
+- :doc:`examples/core/basic_usage`
+
+Reference
+---------
+
+Look up the stable import surface, CLI behavior, reference pages, and optional
+development extras.
+
+- :doc:`api`
+- :doc:`cli_reference`
+- :doc:`reference/index`
+- :doc:`dependencies_and_extras`
 
 Integration With The Ecosystem
 ------------------------------
@@ -66,29 +84,16 @@ Start Here
 
 .. toctree::
    :maxdepth: 2
-   :caption: Documentation
    :hidden:
 
    quickstart
    installation
    concepts
    typical_workflow
-   examples/index
-   api
-
-.. toctree::
-   :maxdepth: 2
-   :caption: Development
-   :hidden:
-
-   dependencies_and_extras
-
-.. toctree::
-   :maxdepth: 2
-   :caption: Additional Guides
-   :hidden:
-
    study_structure_example
    examples_and_recipes
+   examples/index
+   api
    cli_reference
    reference/index
+   dependencies_and_extras

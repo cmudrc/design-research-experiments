@@ -42,7 +42,8 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/cmudrc/design-research-experiments"
+Homepage = "https://cmudrc.github.io/design-research-experiments/"
+Documentation = "https://cmudrc.github.io/design-research-experiments/"
 Repository = "https://github.com/cmudrc/design-research-experiments"
 Issues = "https://github.com/cmudrc/design-research-experiments/issues"
 

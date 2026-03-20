@@ -10,7 +10,8 @@ COVERAGE_MIN ?= 90
 
 .PHONY: help check-python dev install-dev \
 	lint fmt fmt-check type test qa coverage docstrings-check \
-	run-example docs docs-build docs-check docs-linkcheck \
+	run-example run-examples examples-test examples-metrics \
+	docs docs-build docs-check docs-linkcheck \
 	release-check ci clean
 
 help:
@@ -19,6 +20,9 @@ help:
 	@echo "  test             Run the pytest suite."
 	@echo "  qa               Run lint, fmt-check, type, and test."
 	@echo "  run-example      Execute the bundled example script."
+	@echo "  run-examples     Execute all bundled example scripts."
+	@echo "  examples-test    Execute all bundled example scripts."
+	@echo "  examples-metrics Generate example and public-API badge artifacts."
 	@echo "  docs             Build the HTML docs."
 	@echo "  ci               Run the main local CI checks."
 
@@ -58,6 +62,19 @@ docstrings-check: check-python
 
 run-example: check-python
 	PYTHONPATH=src $(PYTHON) examples/basic_usage.py
+
+examples-test: check-python
+	@set -e; \
+	for script in $$(ls examples/*.py | sort); do \
+		echo "Running $$script"; \
+		PYTHONPATH=src $(PYTHON) "$$script"; \
+	done
+
+run-examples: examples-test
+
+examples-metrics: check-python examples-test
+	$(PYTHON) scripts/generate_examples_metrics.py
+	$(PYTHON) scripts/generate_examples_badges.py
 
 docs-build: check-python
 	$(PYTHON) scripts/generate_example_docs.py

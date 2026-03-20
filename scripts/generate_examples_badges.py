@@ -132,7 +132,9 @@ def main() -> None:
         encoding="utf-8",
     )
     print(
-        f"Wrote {PASSING_BADGE} and {API_BADGE} (examples: {passed}/{total}, api: {covered_exports}/{total_exports})"
+        "Wrote "
+        f"{PASSING_BADGE} and {API_BADGE} "
+        f"(examples: {passed}/{total}, api: {covered_exports}/{total_exports})"
     )
 
 

@@ -52,9 +52,12 @@ def _extract_exports(path: Path) -> tuple[str, ...]:
 
         exports: list[str] = []
         for element in node.value.elts:
-            if isinstance(element, ast.Constant) and isinstance(element.value, str):
-                if element.value != "__version__":
-                    exports.append(element.value)
+            if (
+                isinstance(element, ast.Constant)
+                and isinstance(element.value, str)
+                and element.value != "__version__"
+            ):
+                exports.append(element.value)
         return tuple(exports)
 
     raise ValueError(f"Failed to extract a static __all__ export list from {path}.")

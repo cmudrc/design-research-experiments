@@ -51,6 +51,10 @@ Run a basic example:
 make run-example
 ```
 
+This repo maintains a hard 90% total line-coverage floor in CI via
+`make coverage`. The repo-specific rule tracks the family-wide coverage policy
+in [cmudrc/design-research#4](https://github.com/cmudrc/design-research/issues/4).
+
 ## CLI
 
 The package installs a `drexp` CLI:

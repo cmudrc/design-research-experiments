@@ -26,9 +26,15 @@ make lint
 make type
 make docstrings-check
 make test
+make coverage
 make docs-check
 make docs
 ```
+
+This repo maintains a hard 90% total line-coverage floor in CI. Run
+`make coverage` before merge when touching tested behavior. This repo-level
+baseline tracks the family-wide policy in
+[cmudrc/design-research#4](https://github.com/cmudrc/design-research/issues/4).
 
 Optional but useful:
 

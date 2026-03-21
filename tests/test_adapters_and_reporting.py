@@ -221,6 +221,88 @@ def test_agent_adapter_execution_paths(monkeypatch: pytest.MonkeyPatch) -> None:
         )
 
 
+def test_agent_adapter_fallbacks_and_normalization(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Agent adapter should cover import, callable, and event normalization fallbacks."""
+    condition = Condition("cond-2", {"variant": "b"}, {})
+    run_spec = RunSpec(
+        run_id="run-2",
+        study_id="study-2",
+        condition_id="cond-2",
+        problem_id="p2",
+        replicate=1,
+        seed=7,
+        agent_spec_ref="agent-b",
+        problem_spec_ref="p2",
+    )
+    problem_packet = problem_adapter.ProblemPacket("p2", "fam", "brief text")
+
+    def import_failure(name: str) -> Any:
+        """Simulate a missing upstream agent package."""
+        if name == "design_research_agents":
+            raise ImportError("missing package")
+        return importlib.import_module(name)
+
+    monkeypatch.setattr(agent_adapter.importlib, "import_module", import_failure)
+    with pytest.raises(ValueError):
+        agent_adapter.resolve_agent("missing-agent", condition=condition)
+
+    def import_constructor_fallback(name: str) -> Any:
+        """Provide an upstream constructor that cannot be zero-arg initialized."""
+        if name == "design_research_agents":
+            module = types.SimpleNamespace()
+
+            def needs_problem_context(required_context: str) -> _CallableAgent:
+                del required_context
+                return _CallableAgent()
+
+            module.needs_problem_context = needs_problem_context
+            return module
+        return importlib.import_module(name)
+
+    monkeypatch.setattr(agent_adapter.importlib, "import_module", import_constructor_fallback)
+    resolved = agent_adapter.resolve_agent("needs_problem_context", condition=condition)
+    assert callable(resolved)
+
+    def problem_and_brief_agent(*, problem: Any, brief: str) -> dict[str, Any]:
+        """Use fallback keyword mapping for problem packet and brief text."""
+        return {"output": {"text": f"{problem.problem_id}:{brief}"}}
+
+    execution = agent_adapter.execute_agent(
+        agent_spec_ref=problem_and_brief_agent,
+        run_spec=run_spec,
+        condition=condition,
+        problem_packet=problem_packet,
+    )
+    assert execution.output["text"] == "p2:brief text"
+
+    def problem_only_agent(problem: Any) -> dict[str, Any]:
+        """Use the one-argument positional fallback after the two-arg call fails."""
+        return {"output": {"text": problem.problem_id}}
+
+    fallback_execution = agent_adapter.execute_agent(
+        agent_spec_ref=problem_only_agent,
+        run_spec=run_spec,
+        condition=condition,
+        problem_packet=problem_packet,
+    )
+    assert fallback_execution.output["text"] == "p2"
+
+    def top_level_text_agent(*, seed: int) -> dict[str, Any]:
+        """Exercise top-level text normalization and non-mapping event skipping."""
+        del seed
+        return {"text": "top-level text", "events": ["ignore-me"]}
+
+    normalized_execution = agent_adapter.execute_agent(
+        agent_spec_ref=top_level_text_agent,
+        run_spec=run_spec,
+        condition=condition,
+        problem_packet=problem_packet,
+    )
+    assert normalized_execution.output == {"text": "top-level text"}
+    assert len(normalized_execution.events) == 1
+    assert normalized_execution.events[0].text == "top-level text"
+
+
 def test_analysis_adapter_validation_and_exports(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

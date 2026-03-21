@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import csv
+import importlib
 import json
 import random
 import sqlite3
@@ -10,9 +11,11 @@ import sys
 import types
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import pytest
 
+from design_research_experiments import runners as runner_module
 from design_research_experiments.artifacts import (
     bundle_results,
     canonical_artifact_paths,
@@ -297,3 +300,79 @@ def test_artifact_checkpoint_bundle_and_runner_paths(tmp_path: Path) -> None:
 
     manifest = json.loads((output_dir / "manifest.json").read_text(encoding="utf-8"))
     assert manifest["study_id"] == study.study_id
+
+
+def test_dry_run_validate_reports_tight_max_run_budget(tmp_path: Path) -> None:
+    """Dry-run validation should surface a study run budget that is too small."""
+    study = make_study(
+        tmp_path=tmp_path,
+        study_id="max-run-budget-study",
+        problem_ids=("problem-1", "problem-2"),
+        agent_specs=("agent-a", "agent-b"),
+        run_budget=RunBudget(replicates=2, parallelism=1, max_runs=3),
+    )
+
+    report = dry_run_validate(study, conditions=runner_module.build_design(study))
+
+    assert any("Run budget max_runs is below" in error for error in report.errors)
+
+
+def test_reproducible_seed_restores_fake_numpy_state(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Reproducible seed should restore optional numpy state after the context exits."""
+
+    class _FakeNumpyRandom:
+        """Minimal numpy.random-compatible stub."""
+
+        def __init__(self) -> None:
+            self.state: tuple[str, int] = ("initial", 0)
+
+        def get_state(self) -> tuple[str, int]:
+            """Return the current fake RNG state."""
+            return self.state
+
+        def set_state(self, state: tuple[str, int]) -> None:
+            """Restore the saved fake RNG state."""
+            self.state = state
+
+        def seed(self, seed: int) -> None:
+            """Record the seeded state."""
+            self.state = ("seeded", seed)
+
+    fake_numpy = types.SimpleNamespace(random=_FakeNumpyRandom())
+
+    def fake_import(name: str) -> Any:
+        """Provide a fake numpy module while preserving other imports."""
+        if name == "numpy":
+            return fake_numpy
+        return importlib.import_module(name)
+
+    monkeypatch.setattr(runner_module.importlib, "import_module", fake_import)
+
+    with reproducible_seed(13):
+        assert fake_numpy.random.state == ("seeded", 13)
+
+    assert fake_numpy.random.state == ("initial", 0)
+
+
+def test_build_run_specs_resolves_alias_and_default_ids(tmp_path: Path) -> None:
+    """Run-spec construction should honor alias keys and default fallback IDs."""
+    aliased_study = make_study(tmp_path=tmp_path, study_id="alias-study")
+    aliased_condition = Condition(
+        "cond-alias",
+        {"variant": "a", "agent": "agent-alias", "problem": "problem-alias"},
+        {},
+    )
+    aliased_specs = runner_module._build_run_specs(aliased_study, [aliased_condition])
+    assert aliased_specs[0].agent_spec_ref == "agent-alias"
+    assert aliased_specs[0].problem_spec_ref == "problem-alias"
+
+    default_study = make_study(
+        tmp_path=tmp_path,
+        study_id="default-study",
+        problem_ids=(),
+        agent_specs=(),
+    )
+    default_condition = Condition("cond-default", {"variant": "a"}, {})
+    default_specs = runner_module._build_run_specs(default_study, [default_condition])
+    assert default_specs[0].agent_spec_ref == "default-agent"
+    assert default_specs[0].problem_spec_ref == "default-problem"

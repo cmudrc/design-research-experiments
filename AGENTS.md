@@ -25,6 +25,7 @@ merging.
   - `make lint`
   - `make type`
   - `make test`
+  - `make coverage` when changing tested behavior
 - If docs changed:
   - `make docs-check`
   - `make docs`
@@ -47,6 +48,9 @@ merging.
 ## Behavioral Guardrails
 
 - Keep tests deterministic and offline by default.
+- Maintain the hard 90% total line-coverage floor enforced in CI via
+  `make coverage`; this repo-specific baseline tracks
+  [cmudrc/design-research#4](https://github.com/cmudrc/design-research/issues/4).
 - Update tests, docs, and examples alongside behavior changes.
 - Avoid broad dependency growth in the base install.
 - Keep recipe adapters thin and preserve canonical export files unless the

@@ -19,6 +19,7 @@ help:
 	@echo "  dev              Install the project in editable mode with dev dependencies."
 	@echo "  test             Run the pytest suite."
 	@echo "  qa               Run lint, fmt-check, type, and test."
+	@echo "  coverage         Enforce the 90% total coverage floor and emit coverage artifacts."
 	@echo "  run-example      Execute the bundled example script."
 	@echo "  run-examples     Execute all bundled example scripts."
 	@echo "  examples-test    Execute all bundled example scripts."

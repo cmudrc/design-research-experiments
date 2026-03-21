@@ -22,11 +22,14 @@ from design_research_experiments.conditions import Condition
 from design_research_experiments.designs import build_design
 from design_research_experiments.recipes import (
     build_agent_architecture_comparison_study,
+    build_bivariate_comparison_study,
     build_diversity_and_exploration_study,
     build_grammar_scaffold_study,
     build_human_vs_agent_process_study,
     build_optimization_benchmark_study,
     build_prompt_framing_study,
+    build_strategy_comparison_study,
+    build_univariate_comparison_study,
 )
 from design_research_experiments.reporting import (
     render_codebook,
@@ -385,6 +388,9 @@ def test_recipes_bundles_and_reporting(tmp_path: Path) -> None:
     """Recipe/bundle/reporting utilities should build coherent outputs."""
     recipe_builders = (
         build_agent_architecture_comparison_study,
+        build_univariate_comparison_study,
+        build_bivariate_comparison_study,
+        build_strategy_comparison_study,
         build_prompt_framing_study,
         build_grammar_scaffold_study,
         build_human_vs_agent_process_study,

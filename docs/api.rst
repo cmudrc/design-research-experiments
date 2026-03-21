@@ -14,6 +14,10 @@ The top-level package exports a curated public API suitable for notebook/script 
 - ``SeedPolicy``
 - ``ProblemPacket``
 - ``RecipeStudyConfig``
+- ``ComparisonStudyConfig``
+- ``UnivariateComparisonConfig``
+- ``BivariateComparisonConfig``
+- ``StrategyComparisonConfig``
 - ``PromptFramingConfig``
 - ``OptimizationBenchmarkConfig``
 - ``AgentArchitectureComparisonConfig``
@@ -30,6 +34,9 @@ The top-level package exports a curated public API suitable for notebook/script 
 - ``optimization_bundle``
 - ``grammar_problem_bundle``
 - ``human_vs_agent_bundle``
+- ``build_univariate_comparison_study``
+- ``build_bivariate_comparison_study``
+- ``build_strategy_comparison_study``
 - ``build_prompt_framing_study``
 - ``build_optimization_benchmark_study``
 - ``build_agent_architecture_comparison_study``

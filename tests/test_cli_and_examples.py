@@ -139,6 +139,7 @@ def test_example_scripts_execute(tmp_path: Path, monkeypatch: object) -> None:
         "recipe_overview.py",
         "recipe_prompt_framing_run.py",
         "recipe_optimization_benchmark_run.py",
+        "recipe_strategy_comparison_run.py",
     ):
         runpy.run_path(
             str(Path(__file__).resolve().parents[1] / "examples" / script_name),

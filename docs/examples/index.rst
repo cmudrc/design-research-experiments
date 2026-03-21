@@ -54,6 +54,15 @@ Run a recipe-configured optimization benchmarking study.
 **Runtime:** medium
 **Teaches:** benchmark study composition, replication control, analysis export path
 
+Recipe Strategy Comparison Run
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Run a packaged-problem strategy comparison study with factor-bound agent arms.
+
+**Requires:** base install (plus sibling packages for full execution)
+**Runtime:** medium
+**Teaches:** generalized comparison recipes, factor-bound agent execution, canonical summary export
+
 Full Catalog
 ------------
 

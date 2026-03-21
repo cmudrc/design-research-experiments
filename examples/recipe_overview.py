@@ -24,6 +24,9 @@ def main() -> None:
     """Build recipe studies and render lightweight markdown outputs."""
     studies = (
         drex.build_agent_architecture_comparison_study(),
+        drex.build_univariate_comparison_study(),
+        drex.build_bivariate_comparison_study(),
+        drex.build_strategy_comparison_study(),
         drex.build_prompt_framing_study(),
         drex.build_grammar_scaffold_study(),
         drex.build_human_vs_agent_process_study(),

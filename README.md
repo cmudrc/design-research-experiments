@@ -91,11 +91,12 @@ make docs
 Top-level exports are intentionally small:
 
 - `Study`, `Factor`, `Level`, `Constraint`, `Condition`, `Block`
-- `RecipeStudyConfig`, recipe-specific typed config classes
+- `RecipeStudyConfig`, `ComparisonStudyConfig`, and recipe-specific typed config classes
 - `Hypothesis`, `OutcomeSpec`, `AnalysisPlan`
 - `RunSpec`, `RunResult`, `BenchmarkBundle`
 - `build_design`, `generate_doe`, `materialize_conditions`
-- `build_prompt_framing_study`, `build_optimization_benchmark_study`, and other recipe builders
+- `build_univariate_comparison_study`, `build_bivariate_comparison_study`,
+  `build_strategy_comparison_study`, and other recipe builders
 - `run_study`, `resume_study`
 - `export_analysis_tables`, `validate_study`
 

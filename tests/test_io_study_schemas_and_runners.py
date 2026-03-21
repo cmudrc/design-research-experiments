@@ -25,7 +25,7 @@ from design_research_experiments.artifacts import (
     initialize_artifact_layout,
     load_checkpointed_run_results,
 )
-from design_research_experiments.conditions import Condition
+from design_research_experiments.conditions import Condition, Factor, FactorKind, Level
 from design_research_experiments.io import csv_io, json_io, sqlite_io, yaml_io
 from design_research_experiments.runners import (
     dry_run_validate,
@@ -721,3 +721,57 @@ def test_build_run_specs_resolves_alias_and_default_ids(tmp_path: Path) -> None:
     default_specs = runner_module._build_run_specs(default_study, [default_condition])
     assert default_specs[0].agent_spec_ref == "default-agent"
     assert default_specs[0].problem_spec_ref == "default-problem"
+
+
+def test_build_run_specs_does_not_expand_agent_bound_comparisons(tmp_path: Path) -> None:
+    """Agent-bound comparison factors should not cross with top-level agent specs."""
+    study = make_study(
+        tmp_path=tmp_path,
+        study_id="agent-bound-comparison",
+        factors=(
+            Factor(
+                name="agent_id",
+                description="Agent strategy",
+                kind=FactorKind.MANIPULATED,
+                levels=(
+                    Level(name="agent_a", value="agent-a"),
+                    Level(name="agent_b", value="agent-b"),
+                ),
+            ),
+        ),
+        problem_ids=("problem-1", "problem-2"),
+        agent_specs=("fallback-a", "fallback-b"),
+    )
+
+    specs = runner_module._build_run_specs(study, runner_module.build_design(study))
+
+    assert len(specs) == 4
+    assert {spec.agent_spec_ref for spec in specs} == {"agent-a", "agent-b"}
+    assert {spec.problem_spec_ref for spec in specs} == {"problem-1", "problem-2"}
+
+
+def test_build_run_specs_does_not_expand_problem_bound_comparisons(tmp_path: Path) -> None:
+    """Problem-bound comparison factors should not cross with top-level problem IDs."""
+    study = make_study(
+        tmp_path=tmp_path,
+        study_id="problem-bound-comparison",
+        factors=(
+            Factor(
+                name="problem_id",
+                description="Problem arm",
+                kind=FactorKind.MANIPULATED,
+                levels=(
+                    Level(name="problem_a", value="problem-a"),
+                    Level(name="problem_b", value="problem-b"),
+                ),
+            ),
+        ),
+        problem_ids=("fallback-problem-a", "fallback-problem-b"),
+        agent_specs=("agent-a", "agent-b"),
+    )
+
+    specs = runner_module._build_run_specs(study, runner_module.build_design(study))
+
+    assert len(specs) == 4
+    assert {spec.agent_spec_ref for spec in specs} == {"agent-a", "agent-b"}
+    assert {spec.problem_spec_ref for spec in specs} == {"problem-a", "problem-b"}

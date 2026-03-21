@@ -15,7 +15,8 @@ agent/problem bindings.
 3. Execute or inspect
 ---------------------
 
-Materialize conditions, execute runs, and monitor checkpointed progress.
+Materialize conditions, execute runs, and monitor checkpointed progress. In
+interactive terminals, run execution shows a ``tqdm`` progress bar by default.
 
 4. Capture artifacts
 --------------------

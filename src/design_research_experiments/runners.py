@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib
 import random
+import sys
 import time
 from collections.abc import Callable, Mapping, Sequence
 from concurrent.futures import Future, ThreadPoolExecutor, as_completed
@@ -11,6 +12,8 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+
+from tqdm.auto import tqdm
 
 from .adapters.agents import execute_agent
 from .adapters.problems import evaluate_problem, resolve_problem
@@ -34,6 +37,57 @@ class DryRunReport:
     planned_runs: int
 
 
+class _NoOpProgressBar:
+    """Progress-bar shim used when visual progress is disabled."""
+
+    def update(self, _steps: int = 1) -> None:
+        """Ignore progress updates."""
+
+    def set_postfix(
+        self,
+        _ordered_dict: Mapping[str, int] | None = None,
+        *,
+        refresh: bool = True,
+    ) -> None:
+        """Ignore postfix updates."""
+        del refresh
+
+    def close(self) -> None:
+        """Ignore close calls."""
+
+
+@dataclass(slots=True)
+class _RunProgress:
+    """Centralized progress adapter for run execution."""
+
+    total: int
+    initial: int
+    success: int
+    failed: int
+    _bar: Any
+
+    def __post_init__(self) -> None:
+        """Synchronize initial success and failure counts."""
+        self._sync_postfix()
+
+    def record_result(self, result: RunResult) -> None:
+        """Advance progress after one completed run."""
+        if result.status == RunStatus.SUCCESS:
+            self.success += 1
+        elif result.status == RunStatus.FAILED:
+            self.failed += 1
+        self._bar.update(1)
+        self._sync_postfix()
+
+    def close(self) -> None:
+        """Close the underlying progress bar."""
+        self._bar.close()
+
+    def _sync_postfix(self) -> None:
+        """Refresh success and failure counters."""
+        self._bar.set_postfix({"success": self.success, "failed": self.failed})
+
+
 class SerialRunner:
     """Serial orchestration runner."""
 
@@ -47,6 +101,7 @@ class SerialRunner:
         output_dir: Path,
         checkpoint: bool,
         fail_fast: bool,
+        progress: _RunProgress,
     ) -> list[RunResult]:
         """Execute all run specs one-by-one."""
         results: list[RunResult] = []
@@ -61,6 +116,7 @@ class SerialRunner:
             results.append(result)
             if checkpoint:
                 checkpoint_run_result(result, output_dir=output_dir)
+            progress.record_result(result)
             if fail_fast and result.status == RunStatus.FAILED:
                 break
         return results
@@ -80,6 +136,7 @@ class LocalParallelRunner:
         checkpoint: bool,
         fail_fast: bool,
         max_workers: int,
+        progress: _RunProgress,
     ) -> list[RunResult]:
         """Execute run specs in a local thread pool."""
         results: list[RunResult] = []
@@ -102,6 +159,7 @@ class LocalParallelRunner:
                 results.append(result)
                 if checkpoint:
                     checkpoint_run_result(result, output_dir=output_dir)
+                progress.record_result(result)
                 if fail_fast and result.status == RunStatus.FAILED:
                     for pending_future in future_by_run_id:
                         if pending_future.done():
@@ -123,6 +181,7 @@ def run_study(
     resume: bool = False,
     checkpoint: bool = True,
     include_sqlite: bool = False,
+    show_progress: bool | None = None,
 ) -> list[RunResult]:
     """Run a study end-to-end and export canonical artifacts."""
     resolved_conditions = list(conditions) if conditions is not None else build_design(study)
@@ -136,6 +195,7 @@ def run_study(
     output_dir.mkdir(parents=True, exist_ok=True)
 
     all_run_specs = _build_run_specs(study=study, conditions=resolved_conditions)
+    planned_run_ids = {run_spec.run_id for run_spec in all_run_specs}
     condition_by_id = {condition.condition_id: condition for condition in resolved_conditions}
 
     existing_results: list[RunResult] = []
@@ -148,44 +208,59 @@ def run_study(
     pending_run_specs = [
         run_spec for run_spec in all_run_specs if run_spec.run_id not in completed_run_ids
     ]
+    existing_progress_results = [
+        result for result in existing_results if result.run_id in planned_run_ids
+    ]
 
     resolved_parallelism = parallelism if parallelism is not None else study.run_budget.parallelism
     if resolved_parallelism < 1:
         raise ValidationError("parallelism must be >= 1.")
-
-    if resolved_parallelism == 1:
-        serial_runner = SerialRunner()
-        new_results = serial_runner.run(
-            run_specs=pending_run_specs,
-            condition_by_id=condition_by_id,
-            agent_factories=agent_factories,
-            problem_registry=problem_registry,
-            output_dir=output_dir,
-            checkpoint=checkpoint,
-            fail_fast=study.run_budget.fail_fast,
-        )
-    else:
-        parallel_runner = LocalParallelRunner()
-        new_results = parallel_runner.run(
-            run_specs=pending_run_specs,
-            condition_by_id=condition_by_id,
-            agent_factories=agent_factories,
-            problem_registry=problem_registry,
-            output_dir=output_dir,
-            checkpoint=checkpoint,
-            fail_fast=study.run_budget.fail_fast,
-            max_workers=resolved_parallelism,
-        )
-
-    all_results = existing_results + new_results
-    export_canonical_artifacts(
-        study=study,
-        conditions=resolved_conditions,
-        run_results=all_results,
-        output_dir=output_dir,
-        include_sqlite=include_sqlite,
+    progress = _create_run_progress(
+        study_id=study.study_id,
+        total=len(all_run_specs),
+        initial=len(all_run_specs) - len(pending_run_specs),
+        run_results=existing_progress_results,
+        pending_runs=len(pending_run_specs),
+        show_progress=show_progress,
     )
-    return all_results
+    try:
+        if resolved_parallelism == 1:
+            serial_runner = SerialRunner()
+            new_results = serial_runner.run(
+                run_specs=pending_run_specs,
+                condition_by_id=condition_by_id,
+                agent_factories=agent_factories,
+                problem_registry=problem_registry,
+                output_dir=output_dir,
+                checkpoint=checkpoint,
+                fail_fast=study.run_budget.fail_fast,
+                progress=progress,
+            )
+        else:
+            parallel_runner = LocalParallelRunner()
+            new_results = parallel_runner.run(
+                run_specs=pending_run_specs,
+                condition_by_id=condition_by_id,
+                agent_factories=agent_factories,
+                problem_registry=problem_registry,
+                output_dir=output_dir,
+                checkpoint=checkpoint,
+                fail_fast=study.run_budget.fail_fast,
+                max_workers=resolved_parallelism,
+                progress=progress,
+            )
+
+        all_results = existing_results + new_results
+        export_canonical_artifacts(
+            study=study,
+            conditions=resolved_conditions,
+            run_results=all_results,
+            output_dir=output_dir,
+            include_sqlite=include_sqlite,
+        )
+        return all_results
+    finally:
+        progress.close()
 
 
 def resume_study(
@@ -197,6 +272,7 @@ def resume_study(
     parallelism: int | None = None,
     checkpoint: bool = True,
     include_sqlite: bool = False,
+    show_progress: bool | None = None,
 ) -> list[RunResult]:
     """Resume a study from checkpointed run results."""
     return run_study(
@@ -209,6 +285,7 @@ def resume_study(
         resume=True,
         checkpoint=checkpoint,
         include_sqlite=include_sqlite,
+        show_progress=show_progress,
     )
 
 
@@ -339,6 +416,46 @@ def _resolve_problem_ids(study: Study, condition: Condition) -> tuple[str, ...]:
         return tuple(study.problem_ids)
 
     return ("default-problem",)
+
+
+def _create_run_progress(
+    *,
+    study_id: str,
+    total: int,
+    initial: int,
+    run_results: Sequence[RunResult],
+    pending_runs: int,
+    show_progress: bool | None,
+) -> _RunProgress:
+    """Build the run-progress adapter for one execution."""
+    success = sum(1 for result in run_results if result.status == RunStatus.SUCCESS)
+    failed = sum(1 for result in run_results if result.status == RunStatus.FAILED)
+
+    if _should_render_progress(show_progress=show_progress, pending_runs=pending_runs):
+        bar: Any = tqdm(
+            total=total,
+            initial=initial,
+            desc=study_id,
+            unit="run",
+            dynamic_ncols=True,
+            leave=True,
+            file=sys.stderr,
+        )
+    else:
+        bar = _NoOpProgressBar()
+
+    return _RunProgress(total=total, initial=initial, success=success, failed=failed, _bar=bar)
+
+
+def _should_render_progress(*, show_progress: bool | None, pending_runs: int) -> bool:
+    """Decide whether to create a visible progress bar."""
+    if pending_runs < 1:
+        return False
+    if show_progress is not None:
+        return show_progress
+    stderr = sys.stderr
+    isatty = getattr(stderr, "isatty", None)
+    return bool(callable(isatty) and isatty())
 
 
 def _execute_single_run(

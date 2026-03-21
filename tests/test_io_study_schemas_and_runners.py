@@ -9,6 +9,7 @@ import random
 import sqlite3
 import sys
 import types
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -57,6 +58,34 @@ class _DataclassPayload:
     value: int
 
 
+@dataclass(slots=True)
+class _RecordedProgress:
+    """Fake progress adapter used to capture runner updates in tests."""
+
+    study_id: str
+    total: int
+    initial: int
+    pending_runs: int
+    show_progress: bool | None
+    existing_statuses: tuple[RunStatus, ...]
+    success: int
+    failed: int
+    recorded_statuses: list[RunStatus]
+    closed: bool = False
+
+    def record_result(self, result: RunResult) -> None:
+        """Track one completed result update."""
+        self.recorded_statuses.append(result.status)
+        if result.status == RunStatus.SUCCESS:
+            self.success += 1
+        elif result.status == RunStatus.FAILED:
+            self.failed += 1
+
+    def close(self) -> None:
+        """Record close calls from the runner."""
+        self.closed = True
+
+
 def _agent_success(*, problem_packet: object, seed: int) -> dict[str, object]:
     """Return deterministic successful output."""
     del problem_packet
@@ -71,6 +100,75 @@ def _agent_failure(*, problem_packet: object, seed: int) -> dict[str, object]:
     """Raise to trigger isolated run failure."""
     del problem_packet, seed
     raise RuntimeError("boom")
+
+
+def _record_progress_factory(
+    created: list[_RecordedProgress],
+):
+    """Build a fake progress factory that records one adapter per call."""
+
+    def _factory(
+        *,
+        study_id: str,
+        total: int,
+        initial: int,
+        run_results: list[RunResult],
+        pending_runs: int,
+        show_progress: bool | None,
+    ) -> _RecordedProgress:
+        progress = _RecordedProgress(
+            study_id=study_id,
+            total=total,
+            initial=initial,
+            pending_runs=pending_runs,
+            show_progress=show_progress,
+            existing_statuses=tuple(result.status for result in run_results),
+            success=sum(1 for result in run_results if result.status == RunStatus.SUCCESS),
+            failed=sum(1 for result in run_results if result.status == RunStatus.FAILED),
+            recorded_statuses=[],
+        )
+        created.append(progress)
+        return progress
+
+    return _factory
+
+
+@dataclass(slots=True)
+class _FakeTqdmBar:
+    """Minimal tqdm-compatible spy used for adapter tests."""
+
+    postfixes: list[dict[str, int]]
+    updates: list[int]
+    closed: bool = False
+
+    def update(self, steps: int = 1) -> None:
+        """Record one update call."""
+        self.updates.append(steps)
+
+    def set_postfix(
+        self,
+        ordered_dict: Mapping[str, int] | None = None,
+        *,
+        refresh: bool = True,
+    ) -> None:
+        """Record postfix payloads."""
+        del refresh
+        self.postfixes.append(dict(ordered_dict or {}))
+
+    def close(self) -> None:
+        """Record close calls."""
+        self.closed = True
+
+
+@dataclass(slots=True)
+class _FakeStream:
+    """Simple stderr stub with configurable TTY behavior."""
+
+    tty: bool
+
+    def isatty(self) -> bool:
+        """Return the configured TTY state."""
+        return self.tty
 
 
 def test_io_modules_yaml_json_csv_sqlite(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -300,6 +398,253 @@ def test_artifact_checkpoint_bundle_and_runner_paths(tmp_path: Path) -> None:
 
     manifest = json.loads((output_dir / "manifest.json").read_text(encoding="utf-8"))
     assert manifest["study_id"] == study.study_id
+
+
+def test_run_study_reports_serial_progress(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Serial runs should report progress through the shared adapter."""
+    created: list[_RecordedProgress] = []
+    monkeypatch.setattr(
+        runner_module,
+        "_create_run_progress",
+        _record_progress_factory(created),
+    )
+    study = make_study(
+        tmp_path=tmp_path,
+        study_id="serial-progress-study",
+        run_budget=RunBudget(replicates=1, parallelism=1),
+    )
+
+    results = run_study(
+        study,
+        parallelism=1,
+        agent_factories={"agent-a": lambda _condition: _agent_success},
+        show_progress=True,
+    )
+
+    assert len(created) == 1
+    progress = created[0]
+    assert progress.study_id == study.study_id
+    assert progress.total == len(results)
+    assert progress.initial == 0
+    assert progress.pending_runs == len(results)
+    assert progress.show_progress is True
+    assert progress.recorded_statuses == [RunStatus.SUCCESS] * len(results)
+    assert progress.success == len(results)
+    assert progress.failed == 0
+    assert progress.closed is True
+
+
+def test_run_study_reports_parallel_progress(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Parallel runs should update the shared adapter as futures complete."""
+    created: list[_RecordedProgress] = []
+    monkeypatch.setattr(
+        runner_module,
+        "_create_run_progress",
+        _record_progress_factory(created),
+    )
+    study = make_study(
+        tmp_path=tmp_path,
+        study_id="parallel-progress-study",
+        run_budget=RunBudget(replicates=1, parallelism=2),
+    )
+
+    results = run_study(
+        study,
+        parallelism=2,
+        agent_factories={"agent-a": lambda _condition: _agent_success},
+        show_progress=True,
+    )
+
+    assert len(created) == 1
+    progress = created[0]
+    assert progress.total == len(results)
+    assert progress.pending_runs == len(results)
+    assert len(progress.recorded_statuses) == len(results)
+    assert all(status == RunStatus.SUCCESS for status in progress.recorded_statuses)
+    assert progress.success == len(results)
+    assert progress.failed == 0
+    assert progress.closed is True
+
+
+def test_resume_study_progress_tracks_completed_and_pending_runs(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Resume should seed progress from checkpointed results and advance only pending runs."""
+    created: list[_RecordedProgress] = []
+    monkeypatch.setattr(
+        runner_module,
+        "_create_run_progress",
+        _record_progress_factory(created),
+    )
+    study = make_study(
+        tmp_path=tmp_path,
+        study_id="resume-progress-study",
+        run_budget=RunBudget(replicates=1, parallelism=1),
+    )
+    conditions = runner_module.build_design(study)
+    run_spec = runner_module._build_run_specs(study=study, conditions=conditions)[0]
+    checkpoint_run_result(
+        RunResult(run_id=run_spec.run_id, status=RunStatus.SUCCESS, run_spec=run_spec),
+        output_dir=study.output_dir or tmp_path / study.study_id,
+    )
+
+    results = resume_study(
+        study,
+        parallelism=1,
+        agent_factories={"agent-a": lambda _condition: _agent_success},
+        show_progress=True,
+    )
+
+    assert len(created) == 1
+    progress = created[0]
+    assert progress.total == len(results)
+    assert progress.initial == 1
+    assert progress.pending_runs == len(results) - 1
+    assert progress.existing_statuses == (RunStatus.SUCCESS,)
+    assert progress.recorded_statuses == [RunStatus.SUCCESS]
+    assert progress.success == len(results)
+    assert progress.failed == 0
+    assert progress.closed is True
+
+
+def test_resume_study_with_no_pending_runs_still_closes_progress(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Resume should pass a zero-pending state through the progress adapter."""
+    study = make_study(
+        tmp_path=tmp_path,
+        study_id="resume-complete-study",
+        run_budget=RunBudget(replicates=1, parallelism=1),
+    )
+    run_study(
+        study,
+        parallelism=1,
+        agent_factories={"agent-a": lambda _condition: _agent_success},
+        checkpoint=True,
+        show_progress=False,
+    )
+
+    created: list[_RecordedProgress] = []
+    monkeypatch.setattr(
+        runner_module,
+        "_create_run_progress",
+        _record_progress_factory(created),
+    )
+
+    results = resume_study(
+        study,
+        parallelism=1,
+        agent_factories={"agent-a": lambda _condition: _agent_success},
+        show_progress=True,
+    )
+
+    assert len(created) == 1
+    progress = created[0]
+    assert progress.total == len(results)
+    assert progress.initial == len(results)
+    assert progress.pending_runs == 0
+    assert progress.recorded_statuses == []
+    assert progress.success == len(results)
+    assert progress.failed == 0
+    assert progress.closed is True
+
+
+def test_run_study_dry_run_skips_progress_creation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Dry-run validation should not create a progress adapter."""
+    study = make_study(tmp_path=tmp_path, study_id="dry-run-progress-study")
+
+    def _fail(*args: Any, **kwargs: Any) -> Any:
+        raise AssertionError("progress should not be created for dry-run")
+
+    monkeypatch.setattr(runner_module, "_create_run_progress", _fail)
+
+    assert run_study(study, dry_run=True, show_progress=True) == []
+
+
+def test_create_run_progress_respects_suppression_paths(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Progress adapter should avoid visible bars when disabled or not interactive."""
+    monkeypatch.setattr(
+        runner_module,
+        "tqdm",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("tqdm should not be created")),
+    )
+
+    disabled = runner_module._create_run_progress(
+        study_id="suppressed-study",
+        total=2,
+        initial=0,
+        run_results=[],
+        pending_runs=2,
+        show_progress=False,
+    )
+    assert isinstance(disabled._bar, runner_module._NoOpProgressBar)
+
+    monkeypatch.setattr(runner_module.sys, "stderr", _FakeStream(tty=False))
+    auto_disabled = runner_module._create_run_progress(
+        study_id="suppressed-study",
+        total=2,
+        initial=0,
+        run_results=[],
+        pending_runs=2,
+        show_progress=None,
+    )
+    assert isinstance(auto_disabled._bar, runner_module._NoOpProgressBar)
+
+    zero_pending = runner_module._create_run_progress(
+        study_id="suppressed-study",
+        total=2,
+        initial=2,
+        run_results=[],
+        pending_runs=0,
+        show_progress=True,
+    )
+    assert isinstance(zero_pending._bar, runner_module._NoOpProgressBar)
+
+
+def test_create_run_progress_uses_tqdm_when_enabled(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Visible progress should configure the tqdm adapter with the expected defaults."""
+    calls: list[dict[str, Any]] = []
+    bar = _FakeTqdmBar(postfixes=[], updates=[])
+
+    def _fake_tqdm(**kwargs: Any) -> _FakeTqdmBar:
+        calls.append(kwargs)
+        return bar
+
+    monkeypatch.setattr(runner_module, "tqdm", _fake_tqdm)
+    monkeypatch.setattr(runner_module.sys, "stderr", _FakeStream(tty=True))
+
+    progress = runner_module._create_run_progress(
+        study_id="visible-study",
+        total=3,
+        initial=1,
+        run_results=[RunResult(run_id="existing", status=RunStatus.SUCCESS)],
+        pending_runs=2,
+        show_progress=None,
+    )
+    progress.record_result(RunResult(run_id="new", status=RunStatus.FAILED))
+    progress.close()
+
+    assert len(calls) == 1
+    assert calls[0]["total"] == 3
+    assert calls[0]["initial"] == 1
+    assert calls[0]["desc"] == "visible-study"
+    assert calls[0]["unit"] == "run"
+    assert calls[0]["dynamic_ncols"] is True
+    assert calls[0]["leave"] is True
+    assert calls[0]["file"] is runner_module.sys.stderr
+    assert bar.updates == [1]
+    assert bar.postfixes == [{"success": 1, "failed": 0}, {"success": 1, "failed": 1}]
+    assert bar.closed is True
 
 
 def test_dry_run_validate_reports_tight_max_run_budget(tmp_path: Path) -> None:

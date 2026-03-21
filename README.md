@@ -28,7 +28,8 @@ This package centers on reproducible experiment structure and execution:
 - typed schemas for studies, factors, blocks, hypotheses, outcomes, and analysis plans
 - design-of-experiments materialization (full/constrained factorial, randomized block,
   repeated measures, latin square, custom matrices)
-- run orchestration with deterministic seeding, checkpointing, and resume support
+- run orchestration with deterministic seeding, checkpointing, resume support, and
+  interactive `tqdm` progress on terminal runs
 - canonical artifact exports (`study.yaml`, `manifest.json`, `conditions.csv`,
   `runs.csv`, `events.csv`, `evaluations.csv`, and machine-readable hypothesis/plan files)
 - thin adapters that connect to the public APIs of sibling agent/problem/analysis libraries

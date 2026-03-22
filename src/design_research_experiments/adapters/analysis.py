@@ -9,6 +9,8 @@ from typing import Any
 
 from ..artifacts import export_canonical_artifacts
 from ..conditions import Condition
+from ..io import csv_io
+from ..schemas import ValidationError
 from ..study import RunResult, Study
 
 EVENT_REQUIRED_COLUMNS = (
@@ -48,27 +50,39 @@ def export_analysis_tables(
 
 def _run_optional_analysis_validation(events_csv_path: Path) -> None:
     """Optionally run validation hooks from design-research-analysis when available."""
-    try:
-        module = importlib.import_module("design_research_analysis")
-    except ImportError:
+    module = _load_analysis_validation_module()
+    if module is None:
         return
 
-    candidate_names = (
-        "validate_unified_event_table",
-        "validate_event_table",
-        "validate_events",
-    )
+    validator = getattr(module, "validate_unified_table", None)
+    if not callable(validator):
+        return
 
-    for name in candidate_names:
-        if not hasattr(module, name):
+    rows = csv_io.read_csv(events_csv_path)
+    coerce = getattr(module, "coerce_unified_table", None)
+    table = coerce(rows) if callable(coerce) else rows
+    report = validator(table)
+    if getattr(report, "is_valid", True):
+        return
+
+    errors = getattr(report, "errors", ())
+    if isinstance(errors, Sequence) and not isinstance(errors, (str, bytes)):
+        message = "; ".join(str(error) for error in errors) or "Unified table validation failed."
+    else:
+        message = "Unified table validation failed."
+    raise ValidationError(message)
+
+
+def _load_analysis_validation_module() -> Any | None:
+    """Return the first analysis module export surface with unified-table validators."""
+    for module_name in ("design_research_analysis", "design_research_analysis.table"):
+        try:
+            module = importlib.import_module(module_name)
+        except ImportError:
             continue
-        validator = getattr(module, name)
-        if callable(validator):
-            try:
-                validator(events_csv_path)
-            except Exception:
-                return
-            return
+        if hasattr(module, "validate_unified_table"):
+            return module
+    return None
 
 
 def validate_unified_event_columns(event_rows: Sequence[dict[str, Any]]) -> list[str]:

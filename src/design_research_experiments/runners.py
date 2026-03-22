@@ -484,6 +484,19 @@ def _execute_single_run(
                 problem_packet=problem_packet,
                 factories=agent_factories,
             )
+            for key in (
+                "model_name",
+                "model_provider",
+                "agent_kind",
+                "pattern_name",
+                "request_id",
+                "trace_dir",
+                "trace_path",
+            ):
+                value = agent_execution.metadata.get(key)
+                if value in (None, ""):
+                    continue
+                run_spec.execution_metadata[key] = value
 
             evaluation_rows = evaluate_problem(problem_packet, agent_execution.output)
             for row in evaluation_rows:
@@ -504,6 +517,10 @@ def _execute_single_run(
                 "problem_id": run_spec.problem_id,
                 "problem_family": problem_packet.family,
                 "model_name": agent_execution.metadata.get("model_name"),
+                "model_provider": agent_execution.metadata.get("model_provider"),
+                "request_id": agent_execution.metadata.get("request_id"),
+                "trace_dir": agent_execution.metadata.get("trace_dir"),
+                "trace_path": agent_execution.metadata.get("trace_path"),
                 "execution_metadata": stable_json_dumps(run_spec.execution_metadata),
             }
 

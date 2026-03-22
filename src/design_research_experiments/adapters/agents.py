@@ -259,7 +259,7 @@ def _normalize_execution_result(
     model_response = getattr(raw, "model_response", None)
     metadata.update(_extract_model_metadata(model_response))
 
-    metrics = {}
+    metrics: dict[str, Any] = {}
     raw_metrics = output_mapping.get("metrics")
     if isinstance(raw_metrics, Mapping):
         metrics.update(raw_metrics)

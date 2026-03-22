@@ -305,7 +305,7 @@ def _object_to_mapping(value: Any) -> Mapping[str, Any] | None:
         return None
     if isinstance(value, Mapping):
         return value
-    if is_dataclass(value):
+    if is_dataclass(value) and not isinstance(value, type):
         return cast(Mapping[str, Any], asdict(value))
     to_dict = getattr(value, "to_dict", None)
     if callable(to_dict):

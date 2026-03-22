@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import importlib
+import sys
 import types
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -20,6 +22,7 @@ from design_research_experiments.bundles import (
 )
 from design_research_experiments.conditions import Condition
 from design_research_experiments.designs import build_design
+from design_research_experiments.io import csv_io
 from design_research_experiments.recipes import (
     build_agent_architecture_comparison_study,
     build_bivariate_comparison_study,
@@ -39,7 +42,7 @@ from design_research_experiments.reporting import (
     write_markdown_report,
 )
 from design_research_experiments.schemas import Observation, ObservationLevel, RunStatus
-from design_research_experiments.study import RunResult, RunSpec, validate_study
+from design_research_experiments.study import RunBudget, RunResult, RunSpec, Study, validate_study
 
 from .helpers import make_study
 
@@ -60,6 +63,101 @@ class _FakeProblem:
                 "metric_value": len(str(run_output.get("text", ""))),
             }
         ]
+
+
+@dataclass(frozen=True)
+class _FakePackagedEvaluation:
+    """Dataclass-style packaged evaluation used for normalization tests."""
+
+    objective_value: float
+    is_feasible: bool
+    higher_is_better: bool = False
+
+
+class _FakePackagedProblem:
+    """Packaged-problem-like object exposing metadata and render_brief."""
+
+    def __init__(self) -> None:
+        self.metadata = types.SimpleNamespace(
+            problem_id="packaged-problem",
+            title="Packaged Problem",
+            summary="Synthetic packaged benchmark.",
+            kind=types.SimpleNamespace(value="optimization"),
+            capabilities=("prompt-packet", "optional-evaluator"),
+            study_suitability=("intervention-ready",),
+            feature_flags=("intervention-ready", "optional-evaluator"),
+            implementation="design_research_problems.problems:FakeProblem",
+        )
+        self.statement_markdown = "Minimize the objective while staying feasible."
+
+    def render_brief(self) -> str:
+        """Return the canonical packaged brief text."""
+        return "# Packaged Problem\n\nMinimize the objective while staying feasible."
+
+    def evaluate(self, candidate: list[float]) -> _FakePackagedEvaluation:
+        """Evaluate the extracted native candidate payload."""
+        return _FakePackagedEvaluation(objective_value=float(sum(candidate)), is_feasible=True)
+
+
+class _FakeDecisionProblem:
+    """Decision-style packaged problem used for seeded baseline fallback tests."""
+
+    def __init__(self) -> None:
+        self.metadata = types.SimpleNamespace(
+            problem_id="decision-problem",
+            title="Decision Problem",
+            summary="Synthetic decision benchmark.",
+            kind=types.SimpleNamespace(value="decision"),
+        )
+        self.option_factors = (
+            types.SimpleNamespace(key="shape", levels=("round", "square")),
+            types.SimpleNamespace(key="size", levels=(1, 2, 3)),
+        )
+
+    def render_brief(self) -> str:
+        """Return a stable packaged-problem brief."""
+        return "Choose one allowed value for each factor."
+
+    def evaluate(self, candidate: dict[str, object]) -> dict[str, object]:
+        """Return a simple objective for a selected candidate."""
+        return {
+            "objective_value": 1.0 if candidate.get("shape") == "round" else 0.0,
+            "higher_is_better": True,
+        }
+
+
+@dataclass(frozen=True)
+class _FakeUsage:
+    """Usage payload for fake execution-result tests."""
+
+    prompt_tokens: int | None = None
+    completion_tokens: int | None = None
+    total_tokens: int | None = None
+
+
+@dataclass(frozen=True)
+class _FakeModelResponse:
+    """Model response payload for fake execution-result tests."""
+
+    model: str | None = None
+    provider: str | None = None
+    usage: _FakeUsage | dict[str, int] | None = None
+
+
+class _FakeExecutionResult:
+    """Minimal stand-in for design-research-agents ExecutionResult."""
+
+    def __init__(
+        self,
+        *,
+        output: dict[str, Any],
+        metadata: dict[str, Any],
+        model_response: _FakeModelResponse | None = None,
+    ) -> None:
+        self.success = True
+        self.output = output
+        self.metadata = metadata
+        self.model_response = model_response
 
 
 class _CallableAgent:
@@ -151,6 +249,27 @@ def test_problem_adapter_object_and_errors() -> None:
 
     normalized = problem_adapter.resolve_problem(WithPrompt())
     assert normalized.brief == "prompt text"
+    assert problem_adapter.evaluate_problem(normalized, {}) == []
+
+    packaged_problem = _FakePackagedProblem()
+    packaged_packet = problem_adapter.resolve_problem(packaged_problem)
+    assert packaged_packet.problem_id == "packaged-problem"
+    assert packaged_packet.family == "optimization"
+    assert packaged_packet.brief.startswith("# Packaged Problem")
+    assert packaged_packet.metadata["title"] == "Packaged Problem"
+    assert packaged_packet.metadata["summary"] == "Synthetic packaged benchmark."
+    assert packaged_packet.metadata["problem_kind"] == "optimization"
+    assert packaged_packet.metadata["capabilities"] == (
+        "prompt-packet",
+        "optional-evaluator",
+    )
+    assert packaged_packet.metadata["study_suitability"] == ("intervention-ready",)
+
+    packaged_rows = problem_adapter.evaluate_problem(packaged_packet, {"candidate": [0.25, 0.75]})
+    assert packaged_rows[0]["metric_name"] == "objective_value"
+    assert packaged_rows[0]["metric_value"] == 1.0
+    assert packaged_rows[1]["metric_name"] == "is_feasible"
+    assert packaged_rows[1]["metric_value"] is True
 
     class BadEvaluator:
         """Problem-like object with non-callable evaluator field."""
@@ -162,8 +281,6 @@ def test_problem_adapter_object_and_errors() -> None:
 
     with pytest.raises(ValueError):
         problem_adapter.resolve_problem(BadEvaluator())
-
-    assert problem_adapter.evaluate_problem(normalized, {}) == []
 
 
 def test_agent_adapter_execution_paths(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -305,6 +422,121 @@ def test_agent_adapter_fallbacks_and_normalization(monkeypatch: pytest.MonkeyPat
     assert len(normalized_execution.events) == 1
     assert normalized_execution.events[0].text == "top-level text"
 
+    native_problem = _FakeProblem("p2-native")
+    native_problem_packet = problem_adapter.ProblemPacket(
+        "p2-native",
+        "optimization",
+        "native brief",
+        payload={"problem_object": native_problem},
+    )
+
+    class ExecutionResultAgent:
+        """Agent that expects design-research-agents-style prompt/dependencies input."""
+
+        def run(
+            self,
+            prompt: object,
+            *,
+            request_id: str | None = None,
+            dependencies: dict[str, object] | None = None,
+        ) -> _FakeExecutionResult:
+            assert prompt is native_problem
+            assert request_id == run_spec.run_id
+            assert dependencies is not None
+            assert dependencies["problem_packet"] is native_problem_packet
+            assert dependencies["problem"] is native_problem
+            assert dependencies["run_spec"] is run_spec
+            assert dependencies["condition"] is condition
+            assert dependencies["seed"] == run_spec.seed
+            return _FakeExecutionResult(
+                output={
+                    "final_output": {"candidate": {"choice": "baseline"}},
+                    "metrics": {"primary_outcome": 0.75},
+                    "events": [
+                        {
+                            "event_type": "assistant_output",
+                            "text": "native output",
+                            "actor_id": "agent",
+                        }
+                    ],
+                },
+                metadata={
+                    "request_id": request_id or "",
+                    "trace_path": "traces/run-2.jsonl",
+                    "trace_dir": "traces",
+                },
+                model_response=_FakeModelResponse(
+                    model="baseline-model",
+                    provider="test-provider",
+                    usage=_FakeUsage(prompt_tokens=8, completion_tokens=5, total_tokens=13),
+                ),
+            )
+
+    execution_result_execution = agent_adapter.execute_agent(
+        agent_spec_ref=ExecutionResultAgent(),
+        run_spec=run_spec,
+        condition=condition,
+        problem_packet=native_problem_packet,
+    )
+    assert execution_result_execution.output == {"candidate": {"choice": "baseline"}}
+    assert execution_result_execution.metrics["primary_outcome"] == 0.75
+    assert execution_result_execution.metrics["input_tokens"] == 8
+    assert execution_result_execution.metrics["output_tokens"] == 5
+    assert execution_result_execution.metadata["request_id"] == run_spec.run_id
+    assert execution_result_execution.metadata["trace_dir"] == "traces"
+    assert execution_result_execution.metadata["model_name"] == "baseline-model"
+    assert execution_result_execution.metadata["model_provider"] == "test-provider"
+    assert execution_result_execution.trace_refs == ["traces/run-2.jsonl"]
+    assert execution_result_execution.events[0].text == "native output"
+
+
+def test_seeded_random_baseline_factories_support_public_and_fallback_paths(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Seeded baseline factories should use the public agent when available or fall back."""
+    condition = Condition("cond-baseline", {"variant": "baseline"}, {})
+    run_spec = RunSpec(
+        run_id="run-baseline",
+        study_id="study-baseline",
+        condition_id="cond-baseline",
+        problem_id="decision-problem",
+        replicate=1,
+        seed=13,
+        agent_spec_ref="SeededRandomBaselineAgent",
+        problem_spec_ref="decision-problem",
+    )
+    problem_packet = problem_adapter.resolve_problem(_FakeDecisionProblem())
+
+    factories = agent_adapter.make_seeded_random_baseline_factories()
+    monkeypatch.setattr(agent_adapter, "_resolve_from_design_research_agents", lambda _id: None)
+
+    fallback_execution = agent_adapter.execute_agent(
+        agent_spec_ref="SeededRandomBaselineAgent",
+        run_spec=run_spec,
+        condition=condition,
+        problem_packet=problem_packet,
+        factories=factories,
+    )
+    assert fallback_execution.output["candidate"]["shape"] in {"round", "square"}
+    assert fallback_execution.output["candidate"]["size"] in {1, 2, 3}
+    assert fallback_execution.events[0].event_type == "baseline_candidate_selected"
+    assert fallback_execution.metadata["agent_kind"] == "seeded_random_baseline"
+
+    public_agent = _CallableAgent()
+    monkeypatch.setattr(
+        agent_adapter,
+        "_resolve_from_design_research_agents",
+        lambda agent_id: public_agent if agent_id == "SeededRandomBaselineAgent" else None,
+    )
+    public_execution = agent_adapter.execute_agent(
+        agent_spec_ref="SeededRandomBaselineAgent",
+        run_spec=run_spec,
+        condition=condition,
+        problem_packet=problem_adapter.ProblemPacket("p-public", "fam", "brief"),
+        factories=agent_adapter.make_seeded_random_baseline_factories(),
+    )
+    assert public_execution.output["text"].startswith("p-public:")
+
 
 def test_analysis_adapter_validation_and_exports(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -366,10 +598,15 @@ def test_analysis_adapter_validation_and_exports(
         if name == "design_research_analysis":
             module = types.SimpleNamespace()
 
-            def validate_events(path: Path) -> None:
-                called.append(str(path))
+            def coerce_unified_table(rows: list[dict[str, str]]) -> list[dict[str, str]]:
+                return rows
 
-            module.validate_events = validate_events
+            def validate_unified_table(rows: list[dict[str, str]]) -> Any:
+                called.append(rows[0]["record_id"])
+                return types.SimpleNamespace(is_valid=True, errors=())
+
+            module.coerce_unified_table = coerce_unified_table
+            module.validate_unified_table = validate_unified_table
             return module
         return importlib.import_module(name)
 
@@ -382,6 +619,141 @@ def test_analysis_adapter_validation_and_exports(
         validate_with_analysis_package=True,
     )
     assert called
+
+
+def test_analysis_adapter_raises_when_validation_report_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Analysis export should surface package validation failures when requested."""
+    study = make_study(tmp_path=tmp_path, study_id="analysis-invalid")
+    conditions = build_design(study)
+    run_spec = RunSpec(
+        run_id="run-invalid",
+        study_id=study.study_id,
+        condition_id=conditions[0].condition_id,
+        problem_id="problem-1",
+        replicate=1,
+        seed=17,
+        agent_spec_ref="agent-a",
+        problem_spec_ref="problem-1",
+    )
+    run_result = RunResult(
+        run_id="run-invalid",
+        status=RunStatus.SUCCESS,
+        outputs={"text": "ok"},
+        observations=[
+            Observation(
+                timestamp="2026-01-01T00:00:00+00:00",
+                record_id="evt-invalid",
+                text="ok",
+                session_id="run-invalid",
+                actor_id="agent",
+                event_type="assistant_output",
+                level=ObservationLevel.STEP,
+                run_id="run-invalid",
+                study_id=study.study_id,
+                condition_id=conditions[0].condition_id,
+            )
+        ],
+        run_spec=run_spec,
+    )
+
+    def fake_import(name: str) -> Any:
+        if name == "design_research_analysis":
+            module = types.SimpleNamespace()
+            module.coerce_unified_table = lambda rows: rows
+            module.validate_unified_table = lambda _rows: types.SimpleNamespace(
+                is_valid=False,
+                errors=("missing required columns",),
+            )
+            return module
+        return importlib.import_module(name)
+
+    monkeypatch.setattr(analysis_adapter.importlib, "import_module", fake_import)
+    with pytest.raises(ValueError, match="missing required columns"):
+        analysis_adapter.export_analysis_tables(
+            study,
+            conditions=conditions,
+            run_results=[run_result],
+            output_dir=tmp_path / "analysis-invalid-hook",
+            validate_with_analysis_package=True,
+        )
+
+
+def test_real_stack_interoperability_contracts(tmp_path: Path) -> None:
+    """When sibling repos are available, the real stack should compose end to end."""
+    problems_module = _import_sibling_module(
+        "design_research_problems",
+        repo_name="design-research-problems",
+    )
+    _import_sibling_module(
+        "design_research_agents",
+        repo_name="design-research-agents",
+    )
+    analysis_table_module = _import_sibling_module(
+        "design_research_analysis.table",
+        repo_name="design-research-analysis",
+    )
+
+    problem_id = "gmpb_default_dynamic_min"
+    resolved_problem = problems_module.get_problem(problem_id)
+    resolved_packet = problem_adapter.resolve_problem(resolved_problem)
+    assert resolved_packet.problem_id == problem_id
+    assert resolved_packet.family == resolved_problem.metadata.kind.value
+    assert resolved_problem.metadata.title in resolved_packet.brief
+
+    study = Study(
+        study_id="real-stack-interop",
+        title="Real stack interoperability",
+        description="Verify packaged problems, agents, and analysis compose together.",
+        output_dir=tmp_path / "real-stack-interop",
+        problem_ids=(problem_id,),
+        agent_specs=("SeededRandomBaselineAgent",),
+        run_budget=RunBudget(replicates=1, parallelism=1, max_runs=1),
+    )
+    conditions = build_design(study)
+    run_results = importlib.import_module("design_research_experiments.runners").run_study(
+        study,
+        conditions=conditions,
+        show_progress=False,
+    )
+
+    assert len(run_results) == 1
+    run_result = run_results[0]
+    assert run_result.status == RunStatus.SUCCESS
+    assert run_result.outputs
+    assert run_result.metrics["primary_outcome"] is not None
+    assert run_result.provenance_info["request_id"] == run_result.run_id
+
+    exported = analysis_adapter.export_analysis_tables(
+        study,
+        conditions=conditions,
+        run_results=run_results,
+        output_dir=tmp_path / "real-stack-analysis",
+        validate_with_analysis_package=True,
+    )
+    rows = csv_io.read_csv(exported["events.csv"])
+    report = analysis_table_module.validate_unified_table(
+        analysis_table_module.coerce_unified_table(rows)
+    )
+    assert report.is_valid
+
+
+def _import_sibling_module(module_name: str, *, repo_name: str) -> Any:
+    """Import one sibling-repo module when the local workspace checkout is available."""
+    try:
+        return importlib.import_module(module_name)
+    except ImportError:
+        sibling_src = Path(__file__).resolve().parents[2] / repo_name / "src"
+        if not sibling_src.exists():
+            pytest.skip(f"{repo_name} checkout is not available in this workspace.")
+        sibling_src_text = str(sibling_src)
+        if sibling_src_text not in sys.path:
+            sys.path.insert(0, sibling_src_text)
+        try:
+            return importlib.import_module(module_name)
+        except ImportError as exc:
+            pytest.skip(f"Unable to import {module_name}: {exc}")
 
 
 def test_recipes_bundles_and_reporting(tmp_path: Path) -> None:

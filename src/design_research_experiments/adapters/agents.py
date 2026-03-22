@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib
 import inspect
+import random
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any
@@ -23,6 +24,30 @@ class AgentExecution:
     events: list[Observation] = field(default_factory=list)
     trace_refs: list[str] = field(default_factory=list)
     metadata: dict[str, Any] = field(default_factory=dict)
+
+
+SEEDED_RANDOM_BASELINE_AGENT_ID = "SeededRandomBaselineAgent"
+
+
+def make_seeded_random_baseline_factories(
+    *,
+    agent_id: str = SEEDED_RANDOM_BASELINE_AGENT_ID,
+) -> dict[str, Callable[[Condition], Any]]:
+    """Build factories for a deterministic seeded baseline agent.
+
+    When the public `design-research-agents` baseline export is available, the
+    returned factory resolves to that implementation. Otherwise it falls back to
+    a lightweight packaged-problem sampler that keeps experiments runnable
+    without adding a mandatory dependency edge.
+    """
+
+    def factory(_condition: Condition) -> Any:
+        public_agent = _resolve_from_design_research_agents(agent_id)
+        if public_agent is not None:
+            return public_agent
+        return _fallback_seeded_random_baseline
+
+    return {agent_id: factory}
 
 
 def resolve_agent(
@@ -236,6 +261,72 @@ def _build_agent_dependencies(
     if problem_object is not None:
         dependencies["problem"] = problem_object
     return dependencies
+
+
+def _fallback_seeded_random_baseline(
+    *,
+    problem_packet: ProblemPacket,
+    run_spec: RunSpec,
+    seed: int,
+) -> dict[str, Any]:
+    """Return one deterministic candidate for a packaged problem object."""
+    problem_object = _problem_object_from_packet(problem_packet)
+    if problem_object is None:
+        raise ValidationError(
+            "Seeded random baseline fallback requires `problem_packet.payload['problem_object']`."
+        )
+
+    candidate = _sample_problem_candidate(problem_object, seed=seed)
+    return {
+        "output": {"candidate": candidate},
+        "events": [
+            {
+                "event_type": "baseline_candidate_selected",
+                "actor_id": "agent",
+                "text": "Generated one deterministic baseline candidate.",
+                "meta_json": {
+                    "agent_name": SEEDED_RANDOM_BASELINE_AGENT_ID,
+                    "problem_id": problem_packet.problem_id,
+                    "seed": seed,
+                },
+            }
+        ],
+        "metadata": {
+            "agent_kind": "seeded_random_baseline",
+            "request_id": run_spec.run_id,
+        },
+    }
+
+
+def _sample_problem_candidate(problem_object: Any, *, seed: int) -> Any:
+    """Sample one deterministic candidate from a packaged problem object."""
+    randomizer = random.Random(seed)
+
+    option_factors = getattr(problem_object, "option_factors", None)
+    if option_factors:
+        candidate: dict[str, Any] = {}
+        for factor in option_factors:
+            factor_key = getattr(factor, "key", None)
+            levels = tuple(getattr(factor, "levels", ()))
+            if factor_key is None or not levels:
+                continue
+            candidate[str(factor_key)] = randomizer.choice(levels)
+        if candidate:
+            return candidate
+
+    bounds = getattr(problem_object, "bounds", None)
+    lower_bounds = getattr(bounds, "lb", None)
+    upper_bounds = getattr(bounds, "ub", None)
+    if lower_bounds is not None and upper_bounds is not None:
+        return [
+            randomizer.uniform(float(lower_bound), float(upper_bound))
+            for lower_bound, upper_bound in zip(lower_bounds, upper_bounds, strict=False)
+        ]
+
+    raise ValidationError(
+        "Seeded random baseline fallback supports packaged decision problems with "
+        "`option_factors` and optimization problems exposing `bounds.lb` / `bounds.ub`."
+    )
 
 
 def _is_execution_result(raw: Any) -> bool:

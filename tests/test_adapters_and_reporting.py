@@ -99,6 +99,33 @@ class _FakePackagedProblem:
         return _FakePackagedEvaluation(objective_value=float(sum(candidate)), is_feasible=True)
 
 
+class _FakeDecisionProblem:
+    """Decision-style packaged problem used for seeded baseline fallback tests."""
+
+    def __init__(self) -> None:
+        self.metadata = types.SimpleNamespace(
+            problem_id="decision-problem",
+            title="Decision Problem",
+            summary="Synthetic decision benchmark.",
+            kind=types.SimpleNamespace(value="decision"),
+        )
+        self.option_factors = (
+            types.SimpleNamespace(key="shape", levels=("round", "square")),
+            types.SimpleNamespace(key="size", levels=(1, 2, 3)),
+        )
+
+    def render_brief(self) -> str:
+        """Return a stable packaged-problem brief."""
+        return "Choose one allowed value for each factor."
+
+    def evaluate(self, candidate: dict[str, object]) -> dict[str, object]:
+        """Return a simple objective for a selected candidate."""
+        return {
+            "objective_value": 1.0 if candidate.get("shape") == "round" else 0.0,
+            "higher_is_better": True,
+        }
+
+
 @dataclass(frozen=True)
 class _FakeUsage:
     """Usage payload for fake execution-result tests."""
@@ -461,6 +488,54 @@ def test_agent_adapter_fallbacks_and_normalization(monkeypatch: pytest.MonkeyPat
     assert execution_result_execution.metadata["model_provider"] == "test-provider"
     assert execution_result_execution.trace_refs == ["traces/run-2.jsonl"]
     assert execution_result_execution.events[0].text == "native output"
+
+
+def test_seeded_random_baseline_factories_support_public_and_fallback_paths(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Seeded baseline factories should use the public agent when available or fall back."""
+    condition = Condition("cond-baseline", {"variant": "baseline"}, {})
+    run_spec = RunSpec(
+        run_id="run-baseline",
+        study_id="study-baseline",
+        condition_id="cond-baseline",
+        problem_id="decision-problem",
+        replicate=1,
+        seed=13,
+        agent_spec_ref="SeededRandomBaselineAgent",
+        problem_spec_ref="decision-problem",
+    )
+    problem_packet = problem_adapter.resolve_problem(_FakeDecisionProblem())
+
+    factories = agent_adapter.make_seeded_random_baseline_factories()
+    monkeypatch.setattr(agent_adapter, "_resolve_from_design_research_agents", lambda _id: None)
+
+    fallback_execution = agent_adapter.execute_agent(
+        agent_spec_ref="SeededRandomBaselineAgent",
+        run_spec=run_spec,
+        condition=condition,
+        problem_packet=problem_packet,
+        factories=factories,
+    )
+    assert fallback_execution.output["candidate"]["shape"] in {"round", "square"}
+    assert fallback_execution.output["candidate"]["size"] in {1, 2, 3}
+    assert fallback_execution.events[0].event_type == "baseline_candidate_selected"
+    assert fallback_execution.metadata["agent_kind"] == "seeded_random_baseline"
+
+    public_agent = _CallableAgent()
+    monkeypatch.setattr(
+        agent_adapter,
+        "_resolve_from_design_research_agents",
+        lambda agent_id: public_agent if agent_id == "SeededRandomBaselineAgent" else None,
+    )
+    public_execution = agent_adapter.execute_agent(
+        agent_spec_ref="SeededRandomBaselineAgent",
+        run_spec=run_spec,
+        condition=condition,
+        problem_packet=problem_adapter.ProblemPacket("p-public", "fam", "brief"),
+        factories=agent_adapter.make_seeded_random_baseline_factories(),
+    )
+    assert public_execution.output["text"].startswith("p-public:")
 
 
 def test_analysis_adapter_validation_and_exports(

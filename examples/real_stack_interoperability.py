@@ -76,6 +76,7 @@ def main() -> None:
     analysis_module = modules["analysis"]
     problem_id = "gmpb_default_dynamic_min"
     packaged_problem = problems_module.get_problem(problem_id)
+    problem_packet = drex.resolve_problem(problem_id)
 
     study = drex.Study(
         study_id="real-stack-interoperability",
@@ -97,7 +98,13 @@ def main() -> None:
         primary_outcomes=("primary_outcome",),
     )
     conditions = drex.build_design(study)
-    run_results = drex.run_study(study, conditions=conditions, show_progress=False)
+    run_results = drex.run_study(
+        study,
+        conditions=conditions,
+        problem_registry={problem_id: problem_packet},
+        agent_factories=drex.make_seeded_random_baseline_factories(),
+        show_progress=False,
+    )
     exported_paths = drex.export_analysis_tables(
         study,
         conditions=conditions,

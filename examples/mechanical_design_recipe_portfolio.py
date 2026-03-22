@@ -42,6 +42,7 @@ def _problem_registry(problem_ids: tuple[str, ...]) -> dict[str, drex.ProblemPac
     """Return a deterministic problem registry for mechanical design tasks."""
 
     def evaluator(output: dict[str, object]) -> list[dict[str, object]]:
+        """Score one synthetic mechanical-design response."""
         text = str(output.get("text", ""))
         mass_score = round(min(0.95, 0.55 + len(text.split()) / 100.0), 4)
         return [{"metric_name": "primary_outcome", "metric_value": mass_score}]
@@ -66,6 +67,7 @@ def _agent_factory(agent_name: str):
         run_spec: drex.RunSpec,
         condition: drex.Condition,
     ) -> dict[str, object]:
+        """Return one deterministic run payload for the requested condition."""
         comparison_arm = str(condition.factor_assignments.get("comparison_arm", "baseline"))
         prompt_regime = str(condition.factor_assignments.get("prompt_regime", "standard"))
         improvement_bonus = 0.07 if comparison_arm == "treatment" else 0.0

@@ -13,12 +13,14 @@ PUBLIC_API_INIT = REPO_ROOT / "src" / "design_research_experiments" / "__init__.
 
 
 def _discover_examples() -> list[Path]:
+    """Return Python scripts and notebooks under ``examples``."""
     python_examples = sorted(EXAMPLES_ROOT.rglob("*.py"))
     notebook_examples = sorted(EXAMPLES_ROOT.rglob("*.ipynb"))
     return python_examples + notebook_examples
 
 
 def _extract_exports(path: Path) -> list[str]:
+    """Extract public ``__all__`` exports from the package module."""
     module = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
     for node in module.body:
         if (
@@ -37,6 +39,7 @@ def _extract_exports(path: Path) -> list[str]:
 
 
 def _usage_from_source(source: str, exports: set[str]) -> set[str]:
+    """Return exported symbols referenced by one Python source string."""
     try:
         tree = ast.parse(source)
     except SyntaxError:
@@ -51,6 +54,7 @@ def _usage_from_source(source: str, exports: set[str]) -> set[str]:
 
 
 def _usage_from_notebook(path: Path, exports: set[str]) -> set[str]:
+    """Return exported symbols referenced in code cells of one notebook."""
     payload = json.loads(path.read_text(encoding="utf-8"))
     cells = payload.get("cells", [])
     hits: set[str] = set()

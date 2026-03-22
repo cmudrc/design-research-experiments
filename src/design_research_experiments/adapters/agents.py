@@ -146,10 +146,7 @@ def _invoke_callable(
         and parameters["prompt"].kind is not inspect.Parameter.POSITIONAL_ONLY
     ):
         kwargs["prompt"] = prompt_input
-    if (
-        "input" in parameters
-        and parameters["input"].kind is not inspect.Parameter.POSITIONAL_ONLY
-    ):
+    if "input" in parameters and parameters["input"].kind is not inspect.Parameter.POSITIONAL_ONLY:
         kwargs["input"] = prompt_input
     if "request_id" in parameters:
         kwargs["request_id"] = run_spec.run_id

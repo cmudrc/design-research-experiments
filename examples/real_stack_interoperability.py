@@ -108,9 +108,7 @@ def main() -> None:
 
     with exported_paths["events.csv"].open("r", encoding="utf-8", newline="") as file_obj:
         rows = list(csv.DictReader(file_obj))
-    report = analysis_module.validate_unified_table(
-        analysis_module.coerce_unified_table(rows)
-    )
+    report = analysis_module.validate_unified_table(analysis_module.coerce_unified_table(rows))
     run_result = run_results[0]
 
     print("Problem ID:", packaged_problem.metadata.problem_id)

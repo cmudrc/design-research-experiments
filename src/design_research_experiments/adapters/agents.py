@@ -42,6 +42,7 @@ def make_seeded_random_baseline_factories(
     """
 
     def factory(_condition: Condition) -> Any:
+        """Build one seeded-baseline executor for a study condition."""
         public_agent = _resolve_from_design_research_agents(agent_id)
         if public_agent is not None:
             return public_agent

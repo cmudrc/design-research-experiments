@@ -240,7 +240,8 @@ def _problem_object_from_packet(problem_packet: ProblemPacket) -> Any | None:
 
 def _select_agent_prompt_input(problem_packet: ProblemPacket, *, problem_object: Any | None) -> Any:
     """Select the stable prompt payload passed into agent-style run methods."""
-    del problem_object
+    if problem_object is not None:
+        return problem_object
     return problem_packet.brief
 
 

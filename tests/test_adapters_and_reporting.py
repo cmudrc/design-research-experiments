@@ -631,10 +631,12 @@ def test_analysis_adapter_validation_and_exports(
         """Provide a fake analysis integration module with an artifact validator hook."""
         if name == "design_research_analysis.integration":
             module = types.SimpleNamespace()
+
             def validate_experiment_events(path: Path) -> Any:
                 rows = csv_io.read_csv(path)
                 called.append(rows[0]["record_id"])
                 return types.SimpleNamespace(is_valid=True, errors=())
+
             module.validate_experiment_events = validate_experiment_events
             return module
         if name == "design_research_analysis":

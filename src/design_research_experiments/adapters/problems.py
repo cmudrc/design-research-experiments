@@ -306,10 +306,7 @@ def _object_to_mapping(value: Any) -> Mapping[str, Any] | None:
     if isinstance(value, Mapping):
         return value
     if is_dataclass(value) and not isinstance(value, type):
-        return {
-            field_info.name: getattr(value, field_info.name)
-            for field_info in fields(value)
-        }
+        return {field_info.name: getattr(value, field_info.name) for field_info in fields(value)}
     to_dict = getattr(value, "to_dict", None)
     if callable(to_dict):
         try:

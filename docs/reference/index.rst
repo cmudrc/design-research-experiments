@@ -13,6 +13,7 @@ Module Map
 ----------
 
 For command-line usage, see :doc:`../cli_reference`.
+For the file-level export guarantees, see :doc:`../artifact_contract`.
 
 
 Primary modules and responsibilities:
@@ -26,3 +27,9 @@ Primary modules and responsibilities:
 - ``design_research_experiments.recipes``: reusable function-based study templates.
 - ``design_research_experiments.adapters``: integration glue for agents/problems/analysis.
 - ``design_research_experiments.io``: YAML/JSON/CSV/SQLite persistence helpers.
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+
+   ../artifact_contract

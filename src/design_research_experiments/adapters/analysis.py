@@ -9,7 +9,6 @@ from typing import Any
 
 from ..artifacts import export_canonical_artifacts
 from ..conditions import Condition
-from ..io import csv_io
 from ..schemas import ValidationError
 from ..study import RunResult, Study
 
@@ -54,14 +53,15 @@ def _run_optional_analysis_validation(events_csv_path: Path) -> None:
     if module is None:
         return
 
-    validator = getattr(module, "validate_unified_table", None)
+    validator = getattr(module, "validate_experiment_events", None)
     if not callable(validator):
-        return
+        raise ValidationError(
+            "design-research-analysis is installed but does not expose "
+            "`integration.validate_experiment_events(...)`. Upgrade to the April "
+            "compatibility branch."
+        )
 
-    rows = csv_io.read_csv(events_csv_path)
-    coerce = getattr(module, "coerce_unified_table", None)
-    table = coerce(rows) if callable(coerce) else rows
-    report = validator(table)
+    report = validator(events_csv_path)
     if getattr(report, "is_valid", True):
         return
 
@@ -74,15 +74,19 @@ def _run_optional_analysis_validation(events_csv_path: Path) -> None:
 
 
 def _load_analysis_validation_module() -> Any | None:
-    """Return the first analysis module export surface with unified-table validators."""
-    for module_name in ("design_research_analysis", "design_research_analysis.table"):
+    """Return the analysis integration module when the April API is available."""
+    try:
+        return importlib.import_module("design_research_analysis.integration")
+    except ImportError as exc:
         try:
-            module = importlib.import_module(module_name)
+            importlib.import_module("design_research_analysis")
         except ImportError:
-            continue
-        if hasattr(module, "validate_unified_table"):
-            return module
-    return None
+            return None
+        raise ValidationError(
+            "design-research-analysis is installed but does not expose the "
+            "artifact-first `integration` module. Upgrade to the April compatibility "
+            "branch."
+        ) from exc
 
 
 def validate_unified_event_columns(event_rows: Sequence[dict[str, Any]]) -> list[str]:

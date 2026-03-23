@@ -269,9 +269,12 @@ def test_study_serialization_validation_and_loading(tmp_path: Path) -> None:
     loaded_json = Study.from_json(json_path)
     assert loaded_yaml.study_id == study.study_id
     assert loaded_json.study_id == study.study_id
+    assert loaded_yaml.to_dict()["schema_version"] == study.to_dict()["schema_version"]
+    assert loaded_json.to_dict()["schema_version"] == study.to_dict()["schema_version"]
 
     from_dict = Study.from_dict(study.to_dict())
     assert from_dict.study_id == study.study_id
+    assert study.to_dict()["schema_version"]
 
     assert load_study(yaml_path).study_id == study.study_id
     assert load_study(json_path).study_id == study.study_id

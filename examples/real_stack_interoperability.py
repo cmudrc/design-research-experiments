@@ -3,14 +3,14 @@
 ## Introduction
 Run one packaged problem from `design-research-problems` through a public
 `design-research-agents` baseline and validate the exported `events.csv`
-contract with `design-research-analysis`.
+contract with `design-research-analysis`'s artifact-first integration API.
 
 ## Technical Implementation
 1. Bootstrap sibling `src/` directories from the local workspace when present.
 2. Execute a one-run study that uses a packaged optimization problem together
    with `SeededRandomBaselineAgent`.
 3. Export canonical artifacts and validate the event table through the analysis
-   package's unified-table contract.
+   package's artifact-first integration contract.
 
 ## Expected Results
 The script prints the packaged problem identity, one successful run result, and
@@ -19,7 +19,6 @@ the exported artifact filenames after the event table passes validation.
 
 from __future__ import annotations
 
-import csv
 import importlib
 import sys
 from pathlib import Path
@@ -53,16 +52,15 @@ def _load_stack_modules() -> dict[str, object] | None:
 
     try:
         analysis_module = importlib.import_module("design_research_analysis")
-    except ImportError:
-        try:
-            analysis_module = importlib.import_module("design_research_analysis.table")
-        except ImportError as exc:
-            print(f"Real stack example skipped: {exc}")
-            return None
+        analysis_integration = importlib.import_module("design_research_analysis.integration")
+    except ImportError as exc:
+        print(f"Real stack example skipped: {exc}")
+        return None
 
     return {
         "problems": problems_module,
         "analysis": analysis_module,
+        "analysis_integration": analysis_integration,
     }
 
 
@@ -74,6 +72,7 @@ def main() -> None:
 
     problems_module = modules["problems"]
     analysis_module = modules["analysis"]
+    analysis_integration = modules["analysis_integration"]
     problem_id = "gmpb_default_dynamic_min"
     packaged_problem = problems_module.get_problem(problem_id)
     problem_packet = drex.resolve_problem(problem_id)
@@ -112,10 +111,15 @@ def main() -> None:
         output_dir=study.output_dir / "analysis",
         validate_with_analysis_package=True,
     )
-
-    with exported_paths["events.csv"].open("r", encoding="utf-8", newline="") as file_obj:
-        rows = list(csv.DictReader(file_obj))
-    report = analysis_module.validate_unified_table(analysis_module.coerce_unified_table(rows))
+    loaded_artifacts = analysis_integration.load_experiment_artifacts(exported_paths["events.csv"])
+    report = analysis_integration.validate_experiment_events(exported_paths["events.csv"])
+    primary_metric_rows = analysis_module.build_condition_metric_table(
+        loaded_artifacts["runs.csv"],
+        metric="primary_outcome",
+        condition_column="agent_id",
+        conditions=loaded_artifacts["conditions.csv"],
+        evaluations=loaded_artifacts["evaluations.csv"],
+    )
     run_result = run_results[0]
 
     print("Problem ID:", packaged_problem.metadata.problem_id)
@@ -125,6 +129,7 @@ def main() -> None:
     print("Run status:", run_result.status.value)
     print("Output keys:", ", ".join(sorted(run_result.outputs)))
     print("Primary outcome:", run_result.metrics.get("primary_outcome"))
+    print("Metric rows:", len(primary_metric_rows))
     print("Event rows valid:", report.is_valid, f"(rows={report.n_rows})")
     print("Exported artifacts:", ", ".join(path.name for path in exported_paths.values()))
 

@@ -5,7 +5,7 @@ from __future__ import annotations
 import importlib
 import random
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import asdict, dataclass, field, is_dataclass
+from dataclasses import fields, dataclass, field, is_dataclass
 from typing import Any, cast
 
 from ..schemas import ValidationError
@@ -306,7 +306,10 @@ def _object_to_mapping(value: Any) -> Mapping[str, Any] | None:
     if isinstance(value, Mapping):
         return value
     if is_dataclass(value) and not isinstance(value, type):
-        return cast(Mapping[str, Any], asdict(value))
+        return {
+            field_info.name: getattr(value, field_info.name)
+            for field_info in fields(value)
+        }
     to_dict = getattr(value, "to_dict", None)
     if callable(to_dict):
         try:

@@ -271,6 +271,37 @@ def test_problem_adapter_object_and_errors() -> None:
     assert packaged_rows[1]["metric_name"] == "is_feasible"
     assert packaged_rows[1]["metric_value"] is True
 
+    @dataclass(frozen=True)
+    class _EvaluationWithMappingProxy:
+        score: float
+        candidate: object
+
+    class MappingProxyEvaluatorProblem:
+        """Problem-like object whose evaluator dataclass includes a mappingproxy field."""
+
+        problem_id = "mappingproxy-problem"
+        family = "decision"
+        brief = "brief"
+
+        def evaluate(self, _candidate: object) -> _EvaluationWithMappingProxy:
+            return _EvaluationWithMappingProxy(
+                score=0.5,
+                candidate=types.MappingProxyType({"x": 1}),
+            )
+
+    mappingproxy_packet = problem_adapter.resolve_problem(MappingProxyEvaluatorProblem())
+    mappingproxy_rows = problem_adapter.evaluate_problem(mappingproxy_packet, {"candidate": {"x": 1}})
+    assert mappingproxy_rows == [
+        {
+            "evaluator_id": "problem_evaluator",
+            "metric_name": "score",
+            "metric_value": 0.5,
+            "metric_unit": "unitless",
+            "aggregation_level": "run",
+            "notes_json": {},
+        }
+    ]
+
     class BadEvaluator:
         """Problem-like object with non-callable evaluator field."""
 
@@ -594,20 +625,17 @@ def test_analysis_adapter_validation_and_exports(
     called: list[str] = []
 
     def fake_import(name: str) -> Any:
-        """Provide a fake analysis module with a validator hook."""
-        if name == "design_research_analysis":
+        """Provide a fake analysis integration module with an artifact validator hook."""
+        if name == "design_research_analysis.integration":
             module = types.SimpleNamespace()
-
-            def coerce_unified_table(rows: list[dict[str, str]]) -> list[dict[str, str]]:
-                return rows
-
-            def validate_unified_table(rows: list[dict[str, str]]) -> Any:
+            def validate_experiment_events(path: Path) -> Any:
+                rows = csv_io.read_csv(path)
                 called.append(rows[0]["record_id"])
                 return types.SimpleNamespace(is_valid=True, errors=())
-
-            module.coerce_unified_table = coerce_unified_table
-            module.validate_unified_table = validate_unified_table
+            module.validate_experiment_events = validate_experiment_events
             return module
+        if name == "design_research_analysis":
+            return types.SimpleNamespace()
         return importlib.import_module(name)
 
     monkeypatch.setattr(analysis_adapter.importlib, "import_module", fake_import)
@@ -659,14 +687,15 @@ def test_analysis_adapter_raises_when_validation_report_fails(
     )
 
     def fake_import(name: str) -> Any:
-        if name == "design_research_analysis":
+        if name == "design_research_analysis.integration":
             module = types.SimpleNamespace()
-            module.coerce_unified_table = lambda rows: rows
-            module.validate_unified_table = lambda _rows: types.SimpleNamespace(
+            module.validate_experiment_events = lambda _path: types.SimpleNamespace(
                 is_valid=False,
                 errors=("missing required columns",),
             )
             return module
+        if name == "design_research_analysis":
+            return types.SimpleNamespace()
         return importlib.import_module(name)
 
     monkeypatch.setattr(analysis_adapter.importlib, "import_module", fake_import)
@@ -690,8 +719,12 @@ def test_real_stack_interoperability_contracts(tmp_path: Path) -> None:
         "design_research_agents",
         repo_name="design-research-agents",
     )
-    analysis_table_module = _import_sibling_module(
-        "design_research_analysis.table",
+    analysis_module = _import_sibling_module(
+        "design_research_analysis",
+        repo_name="design-research-analysis",
+    )
+    analysis_integration = _import_sibling_module(
+        "design_research_analysis.integration",
         repo_name="design-research-analysis",
     )
 
@@ -732,11 +765,17 @@ def test_real_stack_interoperability_contracts(tmp_path: Path) -> None:
         output_dir=tmp_path / "real-stack-analysis",
         validate_with_analysis_package=True,
     )
-    rows = csv_io.read_csv(exported["events.csv"])
-    report = analysis_table_module.validate_unified_table(
-        analysis_table_module.coerce_unified_table(rows)
+    report = analysis_integration.validate_experiment_events(exported["events.csv"])
+    loaded = analysis_integration.load_experiment_artifacts(exported["events.csv"])
+    metric_rows = analysis_module.build_condition_metric_table(
+        csv_io.read_csv(loaded["runs.csv"]),
+        metric="primary_outcome",
+        condition_column="agent_id",
+        conditions=csv_io.read_csv(loaded["conditions.csv"]),
+        evaluations=csv_io.read_csv(loaded["evaluations.csv"]),
     )
     assert report.is_valid
+    assert metric_rows
 
 
 def _import_sibling_module(module_name: str, *, repo_name: str) -> Any:

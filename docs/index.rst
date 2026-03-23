@@ -51,6 +51,7 @@ shape a stable experimental pipeline.
 - :doc:`typical_workflow`
 - :doc:`study_structure_example`
 - :doc:`examples_and_recipes`
+- :doc:`artifact_contract`
 
 Examples
 --------
@@ -112,6 +113,7 @@ Start Here
    typical_workflow
    study_structure_example
    examples_and_recipes
+   artifact_contract
    examples/index
    api
    cli_reference

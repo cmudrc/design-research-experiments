@@ -32,6 +32,7 @@ This package centers on reproducible experiment structure and execution:
   interactive `tqdm` progress on terminal runs
 - canonical artifact exports (`study.yaml`, `manifest.json`, `conditions.csv`,
   `runs.csv`, `events.csv`, `evaluations.csv`, and machine-readable hypothesis/plan files)
+- documented artifact contracts that downstream analysis can ingest directory-first
 - thin adapters that connect to the public APIs of sibling agent/problem/analysis libraries
 
 ## Quickstart
@@ -78,7 +79,8 @@ for runnable scripts, including end-to-end recipe executions.
 ## Docs
 
 See the [published documentation](https://cmudrc.github.io/design-research-experiments/)
-for guides and API reference.
+for guides, the [artifact contract](https://cmudrc.github.io/design-research-experiments/artifact_contract.html),
+and API reference.
 
 Build docs locally with:
 

@@ -19,6 +19,7 @@ from .hypotheses import (
 )
 from .io import json_io, yaml_io
 from .schemas import (
+    SCHEMA_VERSION,
     ProvenanceMetadata,
     RunBudget,
     RunStatus,
@@ -26,6 +27,8 @@ from .schemas import (
     ValidationError,
     to_jsonable,
 )
+
+STUDY_SCHEMA_VERSION = SCHEMA_VERSION
 
 
 @dataclass(slots=True)
@@ -118,7 +121,8 @@ class Study:
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize the study to a stable JSON/YAML-friendly mapping."""
-        return cast(dict[str, Any], to_jsonable(self))
+        payload = cast(dict[str, Any], to_jsonable(self))
+        return {"schema_version": STUDY_SCHEMA_VERSION, **payload}
 
     def to_yaml(self, path: str | Path) -> Path:
         """Write the study definition to YAML."""

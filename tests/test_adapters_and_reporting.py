@@ -290,7 +290,10 @@ def test_problem_adapter_object_and_errors() -> None:
             )
 
     mappingproxy_packet = problem_adapter.resolve_problem(MappingProxyEvaluatorProblem())
-    mappingproxy_rows = problem_adapter.evaluate_problem(mappingproxy_packet, {"candidate": {"x": 1}})
+    mappingproxy_rows = problem_adapter.evaluate_problem(
+        mappingproxy_packet,
+        {"candidate": {"x": 1}},
+    )
     assert mappingproxy_rows == [
         {
             "evaluator_id": "problem_evaluator",

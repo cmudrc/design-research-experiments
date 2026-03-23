@@ -5,7 +5,7 @@ from __future__ import annotations
 import importlib
 import random
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import fields, dataclass, field, is_dataclass
+from dataclasses import dataclass, field, fields, is_dataclass
 from typing import Any, cast
 
 from ..schemas import ValidationError

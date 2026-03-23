@@ -206,5 +206,5 @@ def test_validate_canonical_artifacts_fails_loudly_on_contract_drift(tmp_path: P
 
     (tmp_path / "events.csv").write_text("timestamp,record_id,text\n", encoding="utf-8")
 
-    with pytest.raises(ValueError, match="events.csv is missing required columns"):
+    with pytest.raises(ValueError, match=r"events\.csv is missing required columns"):
         validate_canonical_artifacts(tmp_path)

@@ -16,6 +16,7 @@ from .schemas import (
     SCHEMA_VERSION,
     Observation,
     RunStatus,
+    ValidationError,
     stable_json_dumps,
     to_jsonable,
     utc_now_iso,

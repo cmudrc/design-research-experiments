@@ -32,4 +32,5 @@ Notes
 
 The experiments package keeps runtime dependencies deliberately small and relies
 on adapters for optional integration with sibling libraries. See
-:doc:`dependencies_and_extras` for frozen install and release-check workflows.
+:doc:`dependencies_and_extras` for development extras and release-check
+guidance.

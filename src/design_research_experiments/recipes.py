@@ -2,14 +2,18 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+import re
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
-from .bundles import BenchmarkBundle, optimization_bundle
+from .bundles import BenchmarkBundle, ideation_bundle, optimization_bundle
 from .conditions import Constraint, Factor, FactorKind, Level
 from .hypotheses import AnalysisPlan, Hypothesis, HypothesisDirection, HypothesisKind, OutcomeSpec
 from .study import Block, RunBudget, SeedPolicy, Study
+
+_AGENT_FACTOR_NAMES = frozenset({"agent_id", "agent", "agent_spec"})
+_PROBLEM_FACTOR_NAMES = frozenset({"problem_id", "problem"})
 
 
 @dataclass(slots=True)
@@ -75,6 +79,29 @@ class OptimizationBenchmarkConfig(RecipeStudyConfig):
     """Overrides for the optimization benchmark recipe."""
 
 
+@dataclass(slots=True)
+class ComparisonStudyConfig(RecipeStudyConfig):
+    """Overrides for comparison-study recipe scaffolds."""
+
+    comparison_factor: Factor | None = None
+    secondary_factor: Factor | None = None
+
+
+@dataclass(slots=True)
+class UnivariateComparisonConfig(ComparisonStudyConfig):
+    """Overrides for the univariate comparison recipe."""
+
+
+@dataclass(slots=True)
+class BivariateComparisonConfig(ComparisonStudyConfig):
+    """Overrides for the bivariate comparison recipe."""
+
+
+@dataclass(slots=True)
+class StrategyComparisonConfig(ComparisonStudyConfig):
+    """Overrides for the packaged-problem strategy comparison recipe."""
+
+
 def _default_outcomes() -> tuple[OutcomeSpec, ...]:
     """Return baseline outcomes used by recipe scaffolds."""
     return (
@@ -99,15 +126,23 @@ def _default_outcomes() -> tuple[OutcomeSpec, ...]:
     )
 
 
-def _default_analysis_plan(hypothesis_id: str) -> AnalysisPlan:
+def _default_analysis_plan(
+    hypothesis_id: str,
+    *,
+    tests: tuple[str, ...] = ("difference_in_means", "regression"),
+    plots: tuple[str, ...] = ("condition_means",),
+    export_tables: tuple[str, ...] = ("summary_by_condition",),
+    random_effects: tuple[str, ...] = (),
+) -> AnalysisPlan:
     """Return a compact default analysis plan."""
     return AnalysisPlan(
         analysis_plan_id="ap1",
         hypothesis_ids=(hypothesis_id,),
-        tests=("difference_in_means", "regression"),
+        tests=tests,
         outcomes=("primary_outcome",),
-        plots=("condition_means",),
-        export_tables=("summary_by_condition",),
+        random_effects=random_effects,
+        plots=plots,
+        export_tables=export_tables,
         multiple_comparison_policy="holm",
     )
 
@@ -175,6 +210,353 @@ def _apply_recipe_config(study: Study, config: RecipeStudyConfig | None) -> Stud
             if config.secondary_outcomes is not None
             else study.secondary_outcomes
         ),
+    )
+
+
+def _comparison_level(
+    *,
+    name: str,
+    value: str,
+    label: str | None = None,
+    is_baseline: bool = False,
+    role: str | None = None,
+    metadata: dict[str, Any] | None = None,
+) -> Level:
+    """Build one comparison-aware level with baseline/treatment metadata."""
+    resolved_metadata = dict(metadata or {})
+    resolved_metadata.setdefault("role", role or ("baseline" if is_baseline else "treatment"))
+    resolved_metadata.setdefault("is_baseline", is_baseline)
+    return Level(name=name, value=value, label=label, metadata=resolved_metadata)
+
+
+def _comparison_factor(
+    *,
+    name: str,
+    description: str,
+    levels: tuple[Level, ...],
+) -> Factor:
+    """Build one manipulated factor annotated as a comparison axis."""
+    return Factor(
+        name=name,
+        description=description,
+        kind=FactorKind.MANIPULATED,
+        levels=levels,
+        metadata={"comparison_axis": True},
+    )
+
+
+def _slug_level_name(value: str, *, index: int, seen: set[str]) -> str:
+    """Normalize a stable level name and keep duplicates unique."""
+    base = re.sub(r"[^a-z0-9]+", "_", value.lower()).strip("_") or f"level_{index}"
+    candidate = base
+    suffix = 2
+    while candidate in seen:
+        candidate = f"{base}_{suffix}"
+        suffix += 1
+    seen.add(candidate)
+    return candidate
+
+
+def _strategy_factor_from_bundle(bundle: BenchmarkBundle) -> Factor:
+    """Build a default agent-strategy comparison factor from one benchmark bundle."""
+    baseline_index = 0
+    for index, agent_spec in enumerate(bundle.agent_specs):
+        lowered = agent_spec.lower()
+        if "baseline" in lowered or "random" in lowered:
+            baseline_index = index
+            break
+
+    seen: set[str] = set()
+    levels = tuple(
+        _comparison_level(
+            name=_slug_level_name(agent_spec, index=index, seen=seen),
+            value=agent_spec,
+            label=agent_spec.replace("-", " ").replace("_", " ").title(),
+            is_baseline=index == baseline_index,
+        )
+        for index, agent_spec in enumerate(bundle.agent_specs)
+    )
+    return _comparison_factor(
+        name="agent_id",
+        description="Agent strategy or runtime binding under comparison.",
+        levels=levels,
+    )
+
+
+def _resolve_comparison_factors(
+    *,
+    config: ComparisonStudyConfig | None,
+    default_factors: tuple[Factor, ...],
+    max_factors: int | None = None,
+) -> tuple[Factor, ...]:
+    """Resolve comparison factors with explicit precedence rules."""
+    if config is not None and config.factors is not None:
+        return config.factors
+
+    resolved = list(default_factors)
+    if config is not None:
+        if config.comparison_factor is not None:
+            if resolved:
+                resolved[0] = config.comparison_factor
+            else:
+                resolved.append(config.comparison_factor)
+        if config.secondary_factor is not None:
+            if len(resolved) >= 2:
+                resolved[1] = config.secondary_factor
+            elif len(resolved) == 1:
+                resolved.append(config.secondary_factor)
+            else:
+                resolved.extend(
+                    factor
+                    for factor in (config.comparison_factor, config.secondary_factor)
+                    if factor is not None
+                )
+
+    if max_factors is not None:
+        return tuple(resolved[:max_factors])
+    return tuple(resolved)
+
+
+def _comparison_hypothesis(
+    *,
+    factor_names: tuple[str, ...],
+    label: str,
+    statement: str,
+    kind: HypothesisKind = HypothesisKind.EFFECT,
+) -> Hypothesis:
+    """Build a default comparison hypothesis."""
+    return Hypothesis(
+        hypothesis_id="h1",
+        label=label,
+        statement=statement,
+        kind=kind,
+        independent_vars=factor_names,
+        dependent_vars=("primary_outcome",),
+        direction=HypothesisDirection.DIFFERENT,
+        linked_analysis_plan_id="ap1",
+    )
+
+
+def _finalize_comparison_bindings(
+    study: Study,
+    *,
+    config: ComparisonStudyConfig | None,
+    selected_bundle: BenchmarkBundle,
+    default_problem_ids: tuple[str, ...],
+    default_agent_specs: tuple[str, ...],
+) -> Study:
+    """Normalize bundle bindings so factor-bound comparisons do not Cartesian-expand."""
+    factor_names = {factor.name for factor in study.factors}
+    problem_ids = study.problem_ids
+    agent_specs = study.agent_specs
+
+    if factor_names & _PROBLEM_FACTOR_NAMES:
+        problem_ids = ()
+    elif config is not None and config.problem_ids is None and config.bundle is not None:
+        problem_ids = selected_bundle.problem_ids
+    elif not problem_ids:
+        problem_ids = default_problem_ids
+
+    if factor_names & _AGENT_FACTOR_NAMES:
+        agent_specs = ()
+    elif not agent_specs or (
+        config is not None and config.agent_specs is None and config.bundle is not None
+    ):
+        agent_specs = default_agent_specs
+
+    if problem_ids == study.problem_ids and agent_specs == study.agent_specs:
+        return study
+    return replace(study, problem_ids=problem_ids, agent_specs=agent_specs)
+
+
+def _build_comparison_study(
+    *,
+    config: ComparisonStudyConfig | None,
+    study_id: str,
+    title: str,
+    description: str,
+    rationale: str,
+    tags: tuple[str, ...],
+    default_bundle: BenchmarkBundle,
+    default_factors: tuple[Factor, ...],
+    default_problem_ids: tuple[str, ...] | None = None,
+    default_agent_specs: tuple[str, ...] | None = None,
+    hypothesis_label: str,
+    hypothesis_statement: str,
+    hypothesis_kind: HypothesisKind = HypothesisKind.EFFECT,
+    analysis_plots: tuple[str, ...] = ("condition_means",),
+    analysis_export_tables: tuple[str, ...] = ("summary_by_condition",),
+) -> Study:
+    """Assemble a comparison-study scaffold and apply typed overrides."""
+    selected_bundle = (
+        config.bundle if config is not None and config.bundle is not None else default_bundle
+    )
+    resolved_factors = _resolve_comparison_factors(
+        config=config,
+        default_factors=default_factors,
+    )
+    factor_names = tuple(factor.name for factor in resolved_factors)
+    resolved_problem_ids = default_problem_ids or selected_bundle.problem_ids
+    resolved_agent_specs: tuple[str, ...]
+    if default_agent_specs is None:
+        resolved_agent_specs = (
+            (selected_bundle.agent_specs[0],) if selected_bundle.agent_specs else ("default-agent",)
+        )
+    else:
+        resolved_agent_specs = default_agent_specs
+
+    defaults = Study(
+        study_id=study_id,
+        title=title,
+        description=description,
+        authors=("Design Research Collective",),
+        rationale=rationale,
+        tags=tags,
+        hypotheses=(
+            _comparison_hypothesis(
+                factor_names=factor_names,
+                label=hypothesis_label,
+                statement=hypothesis_statement,
+                kind=hypothesis_kind,
+            ),
+        ),
+        factors=resolved_factors,
+        design_spec={"kind": "constrained_factorial", "randomize": True},
+        outcomes=_default_outcomes(),
+        analysis_plans=(
+            _default_analysis_plan(
+                "h1",
+                plots=analysis_plots,
+                export_tables=analysis_export_tables,
+            ),
+        ),
+        run_budget=RunBudget(replicates=2, parallelism=1),
+        seed_policy=SeedPolicy(base_seed=37),
+        output_dir=Path("artifacts") / study_id,
+        problem_ids=resolved_problem_ids,
+        agent_specs=resolved_agent_specs,
+        primary_outcomes=("primary_outcome",),
+        secondary_outcomes=("latency_s",),
+    )
+    configured = _apply_recipe_config(defaults, config)
+    return _finalize_comparison_bindings(
+        configured,
+        config=config,
+        selected_bundle=selected_bundle,
+        default_problem_ids=resolved_problem_ids,
+        default_agent_specs=resolved_agent_specs,
+    )
+
+
+def build_univariate_comparison_study(
+    config: UnivariateComparisonConfig | None = None,
+) -> Study:
+    """Build a one-factor comparison study scaffold over packaged problems."""
+    bundle = ideation_bundle()
+    return _build_comparison_study(
+        config=config,
+        study_id="univariate-comparison",
+        title="Univariate Comparison Study",
+        description="Compare one manipulated condition across a packaged problem bundle.",
+        rationale="Provide a compact scaffold for one-axis benchmark comparisons.",
+        tags=("comparison", "univariate"),
+        default_bundle=bundle,
+        default_factors=(
+            _comparison_factor(
+                name="comparison_arm",
+                description="Primary comparison arm.",
+                levels=(
+                    _comparison_level(
+                        name="baseline",
+                        value="baseline",
+                        label="Baseline",
+                        is_baseline=True,
+                    ),
+                    _comparison_level(name="treatment", value="treatment", label="Treatment"),
+                ),
+            ),
+        ),
+        hypothesis_label="Univariate Comparison Effect",
+        hypothesis_statement="The comparison arm changes the primary outcome.",
+    )
+
+
+def build_bivariate_comparison_study(
+    config: BivariateComparisonConfig | None = None,
+) -> Study:
+    """Build a two-factor comparison study scaffold over packaged problems."""
+    bundle = ideation_bundle()
+    return _build_comparison_study(
+        config=config,
+        study_id="bivariate-comparison",
+        title="Bivariate Comparison Study",
+        description="Compare two manipulated axes across a packaged problem bundle.",
+        rationale="Provide a reusable scaffold for pairwise comparison designs and interactions.",
+        tags=("comparison", "bivariate"),
+        default_bundle=bundle,
+        default_factors=(
+            _comparison_factor(
+                name="comparison_arm",
+                description="Primary comparison arm.",
+                levels=(
+                    _comparison_level(
+                        name="baseline",
+                        value="baseline",
+                        label="Baseline",
+                        is_baseline=True,
+                    ),
+                    _comparison_level(name="treatment", value="treatment", label="Treatment"),
+                ),
+            ),
+            _comparison_factor(
+                name="prompt_regime",
+                description="Secondary comparison axis.",
+                levels=(
+                    _comparison_level(
+                        name="standard",
+                        value="standard",
+                        label="Standard",
+                        is_baseline=True,
+                    ),
+                    _comparison_level(name="structured", value="structured", label="Structured"),
+                ),
+            ),
+        ),
+        hypothesis_label="Bivariate Comparison Effect",
+        hypothesis_statement="The comparison axes jointly change the primary outcome.",
+        analysis_plots=("condition_means", "interaction_means"),
+        analysis_export_tables=("summary_by_condition", "summary_by_interaction"),
+    )
+
+
+def build_strategy_comparison_study(
+    config: StrategyComparisonConfig | None = None,
+) -> Study:
+    """Build a packaged-problem strategy comparison study scaffold."""
+    bundle = (
+        config.bundle if config is not None and config.bundle is not None else optimization_bundle()
+    )
+    default_factor = (
+        config.comparison_factor
+        if config is not None and config.comparison_factor is not None
+        else _strategy_factor_from_bundle(bundle)
+    )
+    return _build_comparison_study(
+        config=config,
+        study_id="strategy-comparison",
+        title="Strategy Comparison Study",
+        description="Compare named agent strategies on packaged benchmark problems.",
+        rationale="Centralize canonical strategy-comparison wiring for packaged benchmarks.",
+        tags=("comparison", "strategy", "benchmark"),
+        default_bundle=bundle,
+        default_factors=(default_factor,),
+        default_problem_ids=bundle.problem_ids,
+        default_agent_specs=bundle.agent_specs,
+        hypothesis_label="Strategy Comparison Effect",
+        hypothesis_statement=(
+            "Agent strategy changes the primary outcome on the packaged benchmark."
+        ),
+        hypothesis_kind=HypothesisKind.ROBUSTNESS,
     )
 
 
@@ -510,16 +892,23 @@ def build_optimization_benchmark_study(
 
 __all__ = [
     "AgentArchitectureComparisonConfig",
+    "BivariateComparisonConfig",
+    "ComparisonStudyConfig",
     "DiversityAndExplorationConfig",
     "GrammarScaffoldConfig",
     "HumanVsAgentProcessConfig",
     "OptimizationBenchmarkConfig",
     "PromptFramingConfig",
     "RecipeStudyConfig",
+    "StrategyComparisonConfig",
+    "UnivariateComparisonConfig",
     "build_agent_architecture_comparison_study",
+    "build_bivariate_comparison_study",
     "build_diversity_and_exploration_study",
     "build_grammar_scaffold_study",
     "build_human_vs_agent_process_study",
     "build_optimization_benchmark_study",
     "build_prompt_framing_study",
+    "build_strategy_comparison_study",
+    "build_univariate_comparison_study",
 ]

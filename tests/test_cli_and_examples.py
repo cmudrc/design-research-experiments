@@ -70,6 +70,37 @@ def test_cli_run_study_dry_run(tmp_path: Path, monkeypatch: object) -> None:
     assert cli.main(["run-study", str(study_path), "--dry-run"]) == 0
 
 
+def test_cli_progress_flags_are_forwarded(tmp_path: Path, monkeypatch: object) -> None:
+    """CLI run and resume commands should forward tri-state progress options."""
+    study = make_study(tmp_path=tmp_path, study_id="cli-progress", agent_specs=("agent-a",))
+    study_path = tmp_path / "study.yaml"
+    study.to_yaml(study_path)
+
+    run_calls: list[dict[str, object]] = []
+    resume_calls: list[dict[str, object]] = []
+
+    def _fake_run(_study: object, **kwargs: object) -> list[object]:
+        run_calls.append(kwargs)
+        return []
+
+    def _fake_resume(_study: object, **kwargs: object) -> list[object]:
+        resume_calls.append(kwargs)
+        return []
+
+    monkeypatch.setattr(cli, "run_study", _fake_run)
+    monkeypatch.setattr(cli, "resume_study", _fake_resume)
+
+    assert cli.main(["run-study", str(study_path)]) == 0
+    assert cli.main(["run-study", str(study_path), "--progress"]) == 0
+    assert cli.main(["run-study", str(study_path), "--no-progress"]) == 0
+    assert cli.main(["resume-study", str(study_path)]) == 0
+    assert cli.main(["resume-study", str(study_path), "--progress"]) == 0
+    assert cli.main(["resume-study", str(study_path), "--no-progress"]) == 0
+
+    assert [call["show_progress"] for call in run_calls] == [None, True, False]
+    assert [call["show_progress"] for call in resume_calls] == [None, True, False]
+
+
 def test_cli_generate_doe_writes_csv(tmp_path: Path) -> None:
     """CLI should generate a DOE table CSV from JSON factor specs."""
     out_path = tmp_path / "doe.csv"
@@ -108,6 +139,8 @@ def test_example_scripts_execute(tmp_path: Path, monkeypatch: object) -> None:
         "recipe_overview.py",
         "recipe_prompt_framing_run.py",
         "recipe_optimization_benchmark_run.py",
+        "recipe_strategy_comparison_run.py",
+        "real_stack_interoperability.py",
     ):
         runpy.run_path(
             str(Path(__file__).resolve().parents[1] / "examples" / script_name),

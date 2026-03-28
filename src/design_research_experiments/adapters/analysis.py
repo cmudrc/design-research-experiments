@@ -9,6 +9,7 @@ from typing import Any
 
 from ..artifacts import export_canonical_artifacts
 from ..conditions import Condition
+from ..schemas import ValidationError
 from ..study import RunResult, Study
 
 EVENT_REQUIRED_COLUMNS = (
@@ -48,27 +49,44 @@ def export_analysis_tables(
 
 def _run_optional_analysis_validation(events_csv_path: Path) -> None:
     """Optionally run validation hooks from design-research-analysis when available."""
-    try:
-        module = importlib.import_module("design_research_analysis")
-    except ImportError:
+    module = _load_analysis_validation_module()
+    if module is None:
         return
 
-    candidate_names = (
-        "validate_unified_event_table",
-        "validate_event_table",
-        "validate_events",
-    )
+    validator = getattr(module, "validate_experiment_events", None)
+    if not callable(validator):
+        raise ValidationError(
+            "design-research-analysis is installed but does not expose "
+            "`integration.validate_experiment_events(...)`. Upgrade to the April "
+            "compatibility branch."
+        )
 
-    for name in candidate_names:
-        if not hasattr(module, name):
-            continue
-        validator = getattr(module, name)
-        if callable(validator):
-            try:
-                validator(events_csv_path)
-            except Exception:
-                return
-            return
+    report = validator(events_csv_path)
+    if getattr(report, "is_valid", True):
+        return
+
+    errors = getattr(report, "errors", ())
+    if isinstance(errors, Sequence) and not isinstance(errors, (str, bytes)):
+        message = "; ".join(str(error) for error in errors) or "Unified table validation failed."
+    else:
+        message = "Unified table validation failed."
+    raise ValidationError(message)
+
+
+def _load_analysis_validation_module() -> Any | None:
+    """Return the analysis integration module when the April API is available."""
+    try:
+        return importlib.import_module("design_research_analysis.integration")
+    except ImportError as exc:
+        try:
+            importlib.import_module("design_research_analysis")
+        except ImportError:
+            return None
+        raise ValidationError(
+            "design-research-analysis is installed but does not expose the "
+            "artifact-first `integration` module. Upgrade to the April compatibility "
+            "branch."
+        ) from exc
 
 
 def validate_unified_event_columns(event_rows: Sequence[dict[str, Any]]) -> list[str]:

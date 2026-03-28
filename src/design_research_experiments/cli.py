@@ -108,12 +108,14 @@ def _build_parser() -> argparse.ArgumentParser:
     run_parser.add_argument("--parallelism", type=int, default=None, help="Local worker count")
     run_parser.add_argument("--dry-run", action="store_true", help="Validate only")
     run_parser.add_argument("--sqlite", action="store_true", help="Mirror outputs to SQLite")
+    _add_progress_arguments(run_parser)
     run_parser.set_defaults(handler=_handle_run_study)
 
     resume_parser = subparsers.add_parser("resume-study", help="Resume a checkpointed study")
     resume_parser.add_argument("study", type=Path, help="Path to study YAML/JSON")
     resume_parser.add_argument("--parallelism", type=int, default=None, help="Local worker count")
     resume_parser.add_argument("--sqlite", action="store_true", help="Mirror outputs to SQLite")
+    _add_progress_arguments(resume_parser)
     resume_parser.set_defaults(handler=_handle_resume_study)
 
     export_parser = subparsers.add_parser(
@@ -141,6 +143,24 @@ def _build_parser() -> argparse.ArgumentParser:
     bundle_parser.set_defaults(handler=_handle_bundle_results)
 
     return parser
+
+
+def _add_progress_arguments(parser: argparse.ArgumentParser) -> None:
+    """Add tri-state progress-bar arguments to one parser."""
+    progress_group = parser.add_mutually_exclusive_group()
+    progress_group.add_argument(
+        "--progress",
+        dest="show_progress",
+        action="store_true",
+        help="Force a tqdm progress bar during run execution.",
+    )
+    progress_group.add_argument(
+        "--no-progress",
+        dest="show_progress",
+        action="store_false",
+        help="Disable the tqdm progress bar during run execution.",
+    )
+    parser.set_defaults(show_progress=None)
 
 
 def _handle_validate_study(args: argparse.Namespace) -> int:
@@ -214,6 +234,7 @@ def _handle_run_study(args: argparse.Namespace) -> int:
         parallelism=args.parallelism,
         dry_run=args.dry_run,
         include_sqlite=args.sqlite,
+        show_progress=args.show_progress,
     )
     if args.dry_run:
         print(f"Dry-run validation succeeded for study '{study.study_id}'.")
@@ -229,6 +250,7 @@ def _handle_resume_study(args: argparse.Namespace) -> int:
         study,
         parallelism=args.parallelism,
         include_sqlite=args.sqlite,
+        show_progress=args.show_progress,
     )
     print(f"Study '{study.study_id}' now has {len(results)} total runs after resume.")
     return 0

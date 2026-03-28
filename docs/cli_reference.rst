@@ -43,20 +43,24 @@ Generate DOE tables directly (full, lhs, frac2).
 ``run-study``
 ~~~~~~~~~~~~~
 
-Execute one study definition.
+Execute one study definition. When stderr is attached to a TTY, runs show an
+interactive ``tqdm`` progress bar by default.
 
 .. code-block:: bash
 
    drexp run-study path/to/study.yaml --parallelism 4
+   drexp run-study path/to/study.yaml --parallelism 4 --no-progress
 
 ``resume-study``
 ~~~~~~~~~~~~~~~~
 
-Resume from checkpointed outputs.
+Resume from checkpointed outputs. Use ``--progress`` to force a bar in
+non-interactive contexts or ``--no-progress`` to suppress it.
 
 .. code-block:: bash
 
    drexp resume-study path/to/study.yaml --parallelism 4
+   drexp resume-study path/to/study.yaml --parallelism 4 --progress
 
 ``export-analysis``
 ~~~~~~~~~~~~~~~~~~~

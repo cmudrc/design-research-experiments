@@ -6,43 +6,36 @@ MYPY ?= $(PYTHON) -m mypy
 SPHINX ?= $(PYTHON) -m sphinx
 BUILD ?= $(PYTHON) -m build
 TWINE ?= $(PYTHON) -m twine
-UV ?= $(if $(wildcard .venv/bin/uv),.venv/bin/uv,uv)
-REPRO_PYTHON ?= $(shell cat .python-version 2>/dev/null || echo 3.12.12)
-REPRO_EXTRAS ?= dev
+COVERAGE_MIN ?= 90
 
-.PHONY: help check-python check-uv dev install-dev repro lock \
+.PHONY: help check-python dev install-dev \
 	lint fmt fmt-check type test qa coverage docstrings-check \
-	run-example docs docs-build docs-check docs-linkcheck \
+	run-example run-examples examples-test examples-coverage examples-metrics \
+	docs docs-build docs-check docs-linkcheck \
 	release-check ci clean
 
 help:
 	@echo "Common targets:"
 	@echo "  dev              Install the project in editable mode with dev dependencies."
-	@echo "  repro            Frozen reproducible install using uv.lock."
-	@echo "  lock             Regenerate uv.lock."
 	@echo "  test             Run the pytest suite."
 	@echo "  qa               Run lint, fmt-check, type, and test."
+	@echo "  coverage         Enforce the 90% total coverage floor and emit coverage artifacts."
 	@echo "  run-example      Execute the bundled example script."
+	@echo "  run-examples     Execute all bundled example scripts."
+	@echo "  examples-test    Execute all bundled example scripts."
+	@echo "  examples-coverage Check public API coverage across examples."
+	@echo "  examples-metrics Generate example and public-API badge artifacts."
 	@echo "  docs             Build the HTML docs."
 	@echo "  ci               Run the main local CI checks."
 
 check-python:
 	@$(PYTHON) -c "import pathlib, sys; print(f'Using Python {sys.version.split()[0]} at {pathlib.Path(sys.executable)}'); raise SystemExit(0 if sys.version_info >= (3, 12) else 1)" || (echo "Python >= 3.12 is required by pyproject.toml"; exit 1)
 
-check-uv:
-	@command -v $(UV) >/dev/null 2>&1 || (echo "uv is required for lock/repro targets. Install it from https://docs.astral.sh/uv/getting-started/installation/"; exit 1)
-
 dev:
 	$(PIP) install --upgrade pip setuptools wheel
 	$(PIP) install -e ".[dev]"
 
 install-dev: dev
-
-repro: check-uv
-	$(UV) sync --frozen --python $(REPRO_PYTHON) $(foreach extra,$(REPRO_EXTRAS),--extra $(extra))
-
-lock: check-uv
-	$(UV) lock --python $(REPRO_PYTHON)
 
 lint: check-python
 	$(RUFF) check .
@@ -63,14 +56,30 @@ qa: lint fmt-check type test
 
 coverage: check-python
 	mkdir -p artifacts/coverage
-	PYTHONPATH=src $(PYTEST) --cov=src/design_research_experiments --cov-report=term --cov-report=json:artifacts/coverage/coverage.json -q
-	$(PYTHON) scripts/check_coverage_thresholds.py --coverage-json artifacts/coverage/coverage.json
+	PYTHONPATH=src $(PYTEST) --cov=src/design_research_experiments --cov-fail-under=$(COVERAGE_MIN) --cov-report=term --cov-report=json:artifacts/coverage/coverage.json -q
+	$(PYTHON) scripts/check_coverage_thresholds.py --coverage-json artifacts/coverage/coverage.json --minimum $(COVERAGE_MIN)
 
 docstrings-check: check-python
 	$(PYTHON) scripts/check_google_docstrings.py
 
 run-example: check-python
 	PYTHONPATH=src $(PYTHON) examples/basic_usage.py
+
+examples-test: check-python
+	@set -e; \
+	for script in $$(ls examples/*.py | sort); do \
+		echo "Running $$script"; \
+		PYTHONPATH=src $(PYTHON) "$$script"; \
+	done
+
+run-examples: examples-test
+
+examples-coverage: check-python
+	$(PYTHON) scripts/check_example_api_coverage.py --minimum 90
+
+examples-metrics: check-python examples-test
+	$(PYTHON) scripts/generate_examples_metrics.py
+	$(PYTHON) scripts/generate_examples_badges.py
 
 docs-build: check-python
 	$(PYTHON) scripts/generate_example_docs.py
@@ -90,7 +99,7 @@ release-check: check-python
 	$(BUILD)
 	$(TWINE) check dist/*
 
-ci: qa coverage docstrings-check docs-check run-example release-check
+ci: qa coverage docstrings-check docs-check run-example examples-coverage release-check
 
 clean:
 	rm -rf .coverage .mypy_cache .pytest_cache .ruff_cache artifacts build dist docs/_build

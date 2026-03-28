@@ -1,5 +1,8 @@
 # design-research-experiments
 [![CI](https://github.com/cmudrc/design-research-experiments/actions/workflows/ci.yml/badge.svg)](https://github.com/cmudrc/design-research-experiments/actions/workflows/ci.yml)
+[![Coverage](https://raw.githubusercontent.com/cmudrc/design-research-experiments/main/.github/badges/coverage.svg)](https://github.com/cmudrc/design-research-experiments/actions/workflows/ci.yml)
+[![Examples Passing](https://raw.githubusercontent.com/cmudrc/design-research-experiments/main/.github/badges/examples-passing.svg)](https://github.com/cmudrc/design-research-experiments/actions/workflows/examples.yml)
+[![Public API In Examples](https://raw.githubusercontent.com/cmudrc/design-research-experiments/main/.github/badges/examples-api-coverage.svg)](https://github.com/cmudrc/design-research-experiments/actions/workflows/examples.yml)
 [![Docs](https://github.com/cmudrc/design-research-experiments/actions/workflows/docs-pages.yml/badge.svg)](https://github.com/cmudrc/design-research-experiments/actions/workflows/docs-pages.yml)
 
 <!-- release-callout:start -->
@@ -25,15 +28,17 @@ This package centers on reproducible experiment structure and execution:
 - typed schemas for studies, factors, blocks, hypotheses, outcomes, and analysis plans
 - design-of-experiments materialization (full/constrained factorial, randomized block,
   repeated measures, latin square, custom matrices)
-- run orchestration with deterministic seeding, checkpointing, and resume support
+- run orchestration with deterministic seeding, checkpointing, resume support, and
+  interactive `tqdm` progress on terminal runs
 - canonical artifact exports (`study.yaml`, `manifest.json`, `conditions.csv`,
   `runs.csv`, `events.csv`, `evaluations.csv`, and machine-readable hypothesis/plan files)
+- documented artifact contracts that downstream analysis can ingest directory-first
 - thin adapters that connect to the public APIs of sibling agent/problem/analysis libraries
 
 ## Quickstart
 
 Requires Python 3.12+.
-Reproducible release installs are pinned to Python `3.12.12` (`.python-version`).
+Maintainer workflows target Python `3.12` (`.python-version`).
 
 ```bash
 python -m venv .venv
@@ -47,6 +52,10 @@ Run a basic example:
 ```bash
 make run-example
 ```
+
+This repo maintains a hard 90% total line-coverage floor in CI via
+`make coverage`. The repo-specific rule tracks the family-wide coverage policy
+in [cmudrc/design-research#4](https://github.com/cmudrc/design-research/issues/4).
 
 ## CLI
 
@@ -64,13 +73,14 @@ drexp bundle-results path/to/output_dir
 
 ## Examples
 
-See [examples/README.md](examples/README.md) for runnable scripts, including
-end-to-end recipe executions.
+See [examples/README.md](https://github.com/cmudrc/design-research-experiments/blob/main/examples/README.md)
+for runnable scripts, including end-to-end recipe executions.
 
 ## Docs
 
 See the [published documentation](https://cmudrc.github.io/design-research-experiments/)
-for guides and API reference.
+for guides, the [artifact contract](https://cmudrc.github.io/design-research-experiments/artifact_contract.html),
+and API reference.
 
 Build docs locally with:
 
@@ -83,14 +93,16 @@ make docs
 Top-level exports are intentionally small:
 
 - `Study`, `Factor`, `Level`, `Constraint`, `Condition`, `Block`
-- `RecipeStudyConfig`, recipe-specific typed config classes
+- `RecipeStudyConfig`, `ComparisonStudyConfig`, and recipe-specific typed config classes
 - `Hypothesis`, `OutcomeSpec`, `AnalysisPlan`
 - `RunSpec`, `RunResult`, `BenchmarkBundle`
 - `build_design`, `generate_doe`, `materialize_conditions`
-- `build_prompt_framing_study`, `build_optimization_benchmark_study`, and other recipe builders
+- `build_univariate_comparison_study`, `build_bivariate_comparison_study`,
+  `build_strategy_comparison_study`, and other recipe builders
 - `run_study`, `resume_study`
 - `export_analysis_tables`, `validate_study`
 
 ## Contributing
 
-Contribution workflow and quality gates are documented in `CONTRIBUTING.md`.
+Contribution workflow and quality gates are documented in
+[CONTRIBUTING.md](https://github.com/cmudrc/design-research-experiments/blob/main/CONTRIBUTING.md).

@@ -45,7 +45,8 @@ Artifacts and Manifests
 
 Canonical exports (study definitions, run tables, event tables, evaluation rows,
 and manifests) are designed to feed downstream analysis and reporting without
-ad-hoc schema translation.
+ad-hoc schema translation. See :doc:`artifact_contract` for the file-level
+guarantees and versioning rules.
 
 The "Hat" Role
 --------------

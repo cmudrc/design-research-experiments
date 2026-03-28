@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import csv
 import json
 import tarfile
 from collections.abc import Mapping, Sequence
@@ -15,6 +16,7 @@ from .schemas import (
     SCHEMA_VERSION,
     Observation,
     RunStatus,
+    ValidationError,
     stable_json_dumps,
     to_jsonable,
     utc_now_iso,
@@ -71,6 +73,32 @@ EVALUATION_COLUMNS_REQUIRED = (
     "metric_unit",
     "aggregation_level",
     "notes_json",
+)
+
+STUDY_REQUIRED_KEYS = (
+    "schema_version",
+    "study_id",
+    "title",
+    "description",
+)
+
+MANIFEST_REQUIRED_KEYS = (
+    "schema_version",
+    "study_id",
+    "generated_at",
+    "status_counts",
+    "model_ids",
+    "run_count",
+    "provenance",
+)
+
+CANONICAL_ARTIFACT_FILENAMES = (
+    "study.yaml",
+    "manifest.json",
+    "conditions.csv",
+    "runs.csv",
+    "events.csv",
+    "evaluations.csv",
 )
 
 
@@ -173,6 +201,8 @@ def export_canonical_artifacts(
             },
         )
 
+    validate_canonical_artifacts(paths.output_dir)
+
     return {
         "study.yaml": paths.study_yaml,
         "manifest.json": paths.manifest_json,
@@ -183,6 +213,50 @@ def export_canonical_artifacts(
         "hypotheses.json": paths.hypotheses_json,
         "analysis_plan.json": paths.analysis_plan_json,
         "artifacts": paths.artifacts_dir,
+    }
+
+
+def validate_canonical_artifacts(output_dir: str | Path) -> dict[str, Path]:
+    """Validate the canonical study artifact contract written to one output directory."""
+    paths = canonical_artifact_paths(output_dir)
+    _require_existing_paths(paths)
+
+    study_payload = yaml_io.read_yaml(paths.study_yaml)
+    manifest_payload = json_io.read_json(paths.manifest_json)
+
+    _validate_mapping_keys(
+        artifact_name="study.yaml",
+        payload=study_payload,
+        required_keys=STUDY_REQUIRED_KEYS,
+    )
+    _validate_mapping_keys(
+        artifact_name="manifest.json",
+        payload=manifest_payload,
+        required_keys=MANIFEST_REQUIRED_KEYS,
+    )
+    _validate_schema_version(
+        artifact_name="study.yaml",
+        payload=study_payload,
+        expected_schema_version=SCHEMA_VERSION,
+    )
+    _validate_schema_version(
+        artifact_name="manifest.json",
+        payload=manifest_payload,
+        expected_schema_version=SCHEMA_VERSION,
+    )
+    _validate_matching_study_ids(study_payload=study_payload, manifest_payload=manifest_payload)
+    _validate_csv_columns(paths.conditions_csv, CONDITION_COLUMNS_REQUIRED)
+    _validate_csv_columns(paths.runs_csv, RUN_COLUMNS_REQUIRED)
+    _validate_csv_columns(paths.events_csv, EVENT_COLUMNS_REQUIRED)
+    _validate_csv_columns(paths.evaluations_csv, EVALUATION_COLUMNS_REQUIRED)
+
+    return {
+        "study.yaml": paths.study_yaml,
+        "manifest.json": paths.manifest_json,
+        "conditions.csv": paths.conditions_csv,
+        "runs.csv": paths.runs_csv,
+        "events.csv": paths.events_csv,
+        "evaluations.csv": paths.evaluations_csv,
     }
 
 
@@ -254,6 +328,75 @@ def _build_manifest(study: Study, run_results: Sequence[RunResult]) -> dict[str,
         "run_count": len(run_results),
         "provenance": provenance,
     }
+
+
+def _require_existing_paths(paths: ArtifactPaths) -> None:
+    """Ensure all canonical artifact files exist before validating their contents."""
+    missing_paths = [
+        artifact_name
+        for artifact_name in CANONICAL_ARTIFACT_FILENAMES
+        if not getattr(paths, artifact_name.replace(".", "_")).exists()
+    ]
+    if missing_paths:
+        raise ValidationError(
+            "Missing canonical artifacts: " + ", ".join(sorted(missing_paths)) + "."
+        )
+
+
+def _validate_mapping_keys(
+    *,
+    artifact_name: str,
+    payload: Mapping[str, Any],
+    required_keys: Sequence[str],
+) -> None:
+    """Require a stable set of top-level mapping keys."""
+    missing_keys = [key for key in required_keys if key not in payload]
+    if missing_keys:
+        raise ValidationError(
+            f"{artifact_name} is missing required keys: {', '.join(missing_keys)}."
+        )
+
+
+def _validate_schema_version(
+    *,
+    artifact_name: str,
+    payload: Mapping[str, Any],
+    expected_schema_version: str,
+) -> None:
+    """Require the expected schema version for one artifact payload."""
+    schema_version = payload.get("schema_version")
+    if schema_version != expected_schema_version:
+        raise ValidationError(
+            f"{artifact_name} schema_version {schema_version!r} does not match "
+            f"{expected_schema_version!r}."
+        )
+
+
+def _validate_matching_study_ids(
+    *,
+    study_payload: Mapping[str, Any],
+    manifest_payload: Mapping[str, Any],
+) -> None:
+    """Require the study definition and manifest to agree on study identity."""
+    study_id = study_payload.get("study_id")
+    manifest_study_id = manifest_payload.get("study_id")
+    if study_id != manifest_study_id:
+        raise ValidationError(
+            "study.yaml and manifest.json disagree on study_id: "
+            f"{study_id!r} != {manifest_study_id!r}."
+        )
+
+
+def _validate_csv_columns(path: Path, required_columns: Sequence[str]) -> None:
+    """Require one CSV artifact to publish the documented canonical headers."""
+    with path.open("r", encoding="utf-8", newline="") as file_obj:
+        reader = csv.reader(file_obj)
+        header = next(reader, [])
+    missing_columns = [column for column in required_columns if column not in header]
+    if missing_columns:
+        raise ValidationError(
+            f"{path.name} is missing required columns: {', '.join(missing_columns)}."
+        )
 
 
 def _conditions_rows(study: Study, conditions: Sequence[Condition]) -> list[dict[str, Any]]:

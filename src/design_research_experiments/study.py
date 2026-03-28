@@ -19,6 +19,7 @@ from .hypotheses import (
 )
 from .io import json_io, yaml_io
 from .schemas import (
+    SCHEMA_VERSION,
     ProvenanceMetadata,
     RunBudget,
     RunStatus,
@@ -26,6 +27,8 @@ from .schemas import (
     ValidationError,
     to_jsonable,
 )
+
+STUDY_SCHEMA_VERSION = SCHEMA_VERSION
 
 
 @dataclass(slots=True)
@@ -118,7 +121,8 @@ class Study:
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize the study to a stable JSON/YAML-friendly mapping."""
-        return cast(dict[str, Any], to_jsonable(self))
+        payload = cast(dict[str, Any], to_jsonable(self))
+        return {"schema_version": STUDY_SCHEMA_VERSION, **payload}
 
     def to_yaml(self, path: str | Path) -> Path:
         """Write the study definition to YAML."""
@@ -258,13 +262,22 @@ def validate_study(study: Study) -> list[str]:
                     f"'{outcome_name}'."
                 )
 
-    if not study.problem_ids:
+    problem_binding_factor = _binding_factor(
+        study.factors,
+        names=("problem_id", "problem"),
+    )
+    agent_binding_factor = _binding_factor(
+        study.factors,
+        names=("agent_id", "agent", "agent_spec"),
+    )
+
+    if not study.problem_ids and problem_binding_factor is None:
         errors.append("Study.problem_ids must include at least one problem ID.")
 
     if study.run_budget.max_runs is not None:
         requested_runs = (
-            len(study.problem_ids)
-            * max(1, len(study.agent_specs) or 1)
+            _binding_count(study.problem_ids, problem_binding_factor)
+            * _binding_count(study.agent_specs, agent_binding_factor)
             * study.run_budget.replicates
         )
         if requested_runs > study.run_budget.max_runs:
@@ -295,6 +308,24 @@ def _duplicate_errors(label: str, names: Sequence[str]) -> list[str]:
             errors.append(f"Duplicate {label} name detected: '{name}'.")
         seen.add(name)
     return errors
+
+
+def _binding_factor(factors: Sequence[Factor], *, names: Sequence[str]) -> Factor | None:
+    """Return the first factor that binds a runtime agent or problem identifier."""
+    name_set = set(names)
+    for factor in factors:
+        if factor.name in name_set:
+            return factor
+    return None
+
+
+def _binding_count(values: Sequence[str], factor: Factor | None) -> int:
+    """Resolve the effective binding count for max-run validation."""
+    if values:
+        return len(values)
+    if factor is not None:
+        return max(1, len(factor.levels))
+    return 1
 
 
 def _coerce_factor(value: Factor | Mapping[str, Any]) -> Factor:

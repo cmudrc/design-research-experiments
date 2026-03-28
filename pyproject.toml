@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "design-research-experiments"
-version = "0.1.0"
+version = "0.1.1"
 description = "Study-definition and orchestration layer for the cmudrc design research ecosystem"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -25,26 +25,28 @@ classifiers = [
 ]
 dependencies = [
   "PyYAML>=6.0,<7",
+  "tqdm>=4.66,<5",
 ]
 
 [project.optional-dependencies]
 dev = [
   "build>=1.2,<2",
   "mypy>=1.10,<2",
+  "pydata-sphinx-theme>=0.16,<1",
   "pre-commit>=3.7,<5",
   "pytest>=8.2,<9",
   "pytest-cov>=7.0,<8",
   "ruff>=0.6.0,<1",
   "sphinx>=7.4,<9",
   "sphinx-copybutton>=0.5,<1",
-  "sphinx-rtd-theme>=2.0,<4",
   "twine>=5.1,<7",
   "types-PyYAML>=6.0,<7",
-  "uv>=0.6,<1",
+  "types-tqdm>=4.66,<5",
 ]
 
 [project.urls]
-Homepage = "https://github.com/cmudrc/design-research-experiments"
+Homepage = "https://cmudrc.github.io/design-research-experiments/"
+Documentation = "https://cmudrc.github.io/design-research-experiments/"
 Repository = "https://github.com/cmudrc/design-research-experiments"
 Issues = "https://github.com/cmudrc/design-research-experiments/issues"
 

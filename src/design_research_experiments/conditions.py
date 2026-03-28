@@ -324,6 +324,7 @@ def materialize_conditions(
     for factor_assignment in factor_assignments:
         for block_assignment in block_assignments:
             condition = _build_condition(
+                factors=resolved_factors,
                 factor_assignment=factor_assignment,
                 block_assignment=block_assignment,
                 constraints=resolved_constraints,
@@ -395,6 +396,8 @@ def _normalize_inputs(
 
 
 def _build_condition(
+    *,
+    factors: Sequence[Factor],
     factor_assignment: Mapping[str, Any],
     block_assignment: Mapping[str, Any],
     constraints: Sequence[Constraint],
@@ -425,17 +428,89 @@ def _build_condition(
         condition_id=condition_id,
         factor_assignments=dict(factor_assignment),
         block_assignments=dict(block_assignment),
-        metadata={
-            "fingerprint": stable_json_dumps(
-                {
-                    "factors": factor_assignment,
-                    "blocks": block_assignment,
-                }
-            )
-        },
+        metadata=_build_condition_metadata(
+            factors=factors,
+            factor_assignment=factor_assignment,
+            block_assignment=block_assignment,
+        ),
         admissible=admissible,
         constraint_messages=messages,
     )
+
+
+def _build_condition_metadata(
+    *,
+    factors: Sequence[Factor],
+    factor_assignment: Mapping[str, Any],
+    block_assignment: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Build condition metadata while preserving the stable fingerprint payload."""
+    metadata = {
+        "fingerprint": stable_json_dumps(
+            {
+                "factors": factor_assignment,
+                "blocks": block_assignment,
+            }
+        )
+    }
+    metadata.update(
+        _build_comparison_metadata(factors=factors, factor_assignment=factor_assignment)
+    )
+    return metadata
+
+
+def _build_comparison_metadata(
+    *,
+    factors: Sequence[Factor],
+    factor_assignment: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Collect comparison labels and baseline flags from level metadata."""
+    comparison_axes: dict[str, dict[str, Any]] = {}
+    for factor in factors:
+        if factor.name not in factor_assignment:
+            continue
+        axis = _comparison_axis_for_factor(factor, factor_assignment[factor.name])
+        if axis is None:
+            continue
+        comparison_axes[factor.name] = axis
+
+    if not comparison_axes:
+        return {}
+
+    baseline_axes = [name for name, axis in comparison_axes.items() if axis["is_baseline"]]
+    labels = [str(axis["label"]) for axis in comparison_axes.values()]
+    return {
+        "condition_label": " | ".join(labels),
+        "comparison_axes": comparison_axes,
+        "comparison_baseline": {
+            "is_baseline_condition": len(baseline_axes) == len(comparison_axes),
+            "axes": baseline_axes,
+        },
+    }
+
+
+def _comparison_axis_for_factor(factor: Factor, value: Any) -> dict[str, Any] | None:
+    """Return normalized comparison metadata for one factor assignment."""
+    for level in factor.levels:
+        if level.value != value:
+            continue
+
+        if "is_baseline" not in level.metadata and "role" not in level.metadata:
+            return None
+
+        is_baseline = bool(
+            level.metadata.get("is_baseline", str(level.metadata.get("role", "")) == "baseline")
+        )
+        role = str(level.metadata.get("role", "baseline" if is_baseline else "treatment"))
+        return {
+            "value": value,
+            "level_name": level.name,
+            "label": level.label or level.name,
+            "role": role,
+            "is_baseline": is_baseline,
+        }
+
+    return None
 
 
 def _coerce_factor(value: Any) -> Factor:

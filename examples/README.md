@@ -14,6 +14,7 @@ Runnable examples for `design-research-experiments`.
 
 - `recipe_prompt_framing_run.py`: execute a non-default `build_prompt_framing_study` configuration with mock agents/problems.
 - `recipe_optimization_benchmark_run.py`: execute a non-default `build_optimization_benchmark_study` configuration with mock agents/problems.
+- `recipe_strategy_comparison_run.py`: execute a packaged-problem `build_strategy_comparison_study` configuration with mock agents/problems.
 
 Run examples from repository root:
 
@@ -24,4 +25,5 @@ PYTHONPATH=src python examples/public_api_walkthrough.py
 PYTHONPATH=src python examples/doe_capabilities.py
 PYTHONPATH=src python examples/recipe_prompt_framing_run.py
 PYTHONPATH=src python examples/recipe_optimization_benchmark_run.py
+PYTHONPATH=src python examples/recipe_strategy_comparison_run.py
 ```

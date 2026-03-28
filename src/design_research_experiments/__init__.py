@@ -1,7 +1,8 @@
 """Public API exports for design-research-experiments."""
 
+from .adapters.agents import make_seeded_random_baseline_factories
 from .adapters.analysis import export_analysis_tables
-from .adapters.problems import ProblemPacket
+from .adapters.problems import ProblemPacket, resolve_problem
 from .bundles import (
     BenchmarkBundle,
     grammar_problem_bundle,
@@ -14,18 +15,25 @@ from .designs import build_design, generate_doe
 from .hypotheses import AnalysisPlan, Hypothesis, OutcomeSpec
 from .recipes import (
     AgentArchitectureComparisonConfig,
+    BivariateComparisonConfig,
+    ComparisonStudyConfig,
     DiversityAndExplorationConfig,
     GrammarScaffoldConfig,
     HumanVsAgentProcessConfig,
     OptimizationBenchmarkConfig,
     PromptFramingConfig,
     RecipeStudyConfig,
+    StrategyComparisonConfig,
+    UnivariateComparisonConfig,
     build_agent_architecture_comparison_study,
+    build_bivariate_comparison_study,
     build_diversity_and_exploration_study,
     build_grammar_scaffold_study,
     build_human_vs_agent_process_study,
     build_optimization_benchmark_study,
     build_prompt_framing_study,
+    build_strategy_comparison_study,
+    build_univariate_comparison_study,
 )
 from .reporting import (
     render_codebook,
@@ -42,7 +50,9 @@ __all__ = [
     "AgentArchitectureComparisonConfig",
     "AnalysisPlan",
     "BenchmarkBundle",
+    "BivariateComparisonConfig",
     "Block",
+    "ComparisonStudyConfig",
     "Condition",
     "Constraint",
     "DiversityAndExplorationConfig",
@@ -61,25 +71,32 @@ __all__ = [
     "RunResult",
     "RunSpec",
     "SeedPolicy",
+    "StrategyComparisonConfig",
     "Study",
+    "UnivariateComparisonConfig",
     "build_agent_architecture_comparison_study",
+    "build_bivariate_comparison_study",
     "build_design",
     "build_diversity_and_exploration_study",
     "build_grammar_scaffold_study",
     "build_human_vs_agent_process_study",
     "build_optimization_benchmark_study",
     "build_prompt_framing_study",
+    "build_strategy_comparison_study",
+    "build_univariate_comparison_study",
     "export_analysis_tables",
     "generate_doe",
     "grammar_problem_bundle",
     "human_vs_agent_bundle",
     "ideation_bundle",
+    "make_seeded_random_baseline_factories",
     "materialize_conditions",
     "optimization_bundle",
     "render_codebook",
     "render_markdown_summary",
     "render_methods_scaffold",
     "render_significance_brief",
+    "resolve_problem",
     "resume_study",
     "run_study",
     "validate_study",

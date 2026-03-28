@@ -25,6 +25,8 @@ Or use:
 
    make dev
 
+Maintainer workflows target Python ``3.12`` from ``.python-version``.
+
 Extras Matrix
 -------------
 
@@ -47,5 +49,4 @@ Recommended install profiles:
 - study design and orchestration only: base install
 - local development and validation: ``pip install -e ".[dev]"``
 
-Reproducible and release flows are exposed via ``make repro``, ``make lock``,
-and ``make release-check``.
+Release packaging validation is exposed via ``make release-check``.

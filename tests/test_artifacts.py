@@ -2,11 +2,20 @@
 
 from __future__ import annotations
 
+import csv
+import json
 from pathlib import Path
 
-from design_research_experiments.artifacts import export_canonical_artifacts
+import pytest
+
+from design_research_experiments.artifacts import (
+    export_canonical_artifacts,
+    validate_canonical_artifacts,
+)
 from design_research_experiments.conditions import Condition, Factor, FactorKind, Level
+from design_research_experiments.designs import build_design
 from design_research_experiments.hypotheses import AnalysisPlan, Hypothesis, OutcomeSpec
+from design_research_experiments.recipes import build_strategy_comparison_study
 from design_research_experiments.schemas import Observation, ObservationLevel, RunStatus
 from design_research_experiments.study import RunResult, RunSpec, Study
 
@@ -138,6 +147,12 @@ def test_export_canonical_artifacts_writes_required_files_and_columns(tmp_path: 
     }
     assert set(paths) == expected_names
     assert all(path.exists() for path in paths.values())
+    assert validate_canonical_artifacts(tmp_path)["events.csv"] == tmp_path / "events.csv"
+
+    manifest = json.loads((tmp_path / "manifest.json").read_text(encoding="utf-8"))
+    study_payload = (tmp_path / "study.yaml").read_text(encoding="utf-8")
+    assert manifest["schema_version"]
+    assert "schema_version:" in study_payload
 
     events_header = (tmp_path / "events.csv").read_text(encoding="utf-8").splitlines()[0]
     for required_column in [
@@ -150,3 +165,46 @@ def test_export_canonical_artifacts_writes_required_files_and_columns(tmp_path: 
         "meta_json",
     ]:
         assert required_column in events_header
+
+
+def test_exported_condition_rows_include_comparison_metadata(tmp_path: Path) -> None:
+    """Comparison studies should export labels and baseline metadata in assignment metadata."""
+    study = build_strategy_comparison_study()
+    study.output_dir = tmp_path
+    conditions = build_design(study)
+
+    export_canonical_artifacts(
+        study=study,
+        conditions=conditions,
+        run_results=[],
+        output_dir=tmp_path,
+    )
+
+    with (tmp_path / "conditions.csv").open("r", encoding="utf-8", newline="") as file_obj:
+        rows = list(csv.DictReader(file_obj))
+
+    assert rows
+    assignment_meta = json.loads(rows[0]["assignment_meta_json"])
+    assert "condition_label" in assignment_meta
+    assert "comparison_axes" in assignment_meta
+    assert "comparison_baseline" in assignment_meta
+    assert "agent_id" in assignment_meta["comparison_axes"]
+
+
+def test_validate_canonical_artifacts_fails_loudly_on_contract_drift(tmp_path: Path) -> None:
+    """Validation should explain when a canonical export no longer matches the contract."""
+    study = build_strategy_comparison_study()
+    study.output_dir = tmp_path
+    conditions = build_design(study)
+
+    export_canonical_artifacts(
+        study=study,
+        conditions=conditions,
+        run_results=[],
+        output_dir=tmp_path,
+    )
+
+    (tmp_path / "events.csv").write_text("timestamp,record_id,text\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match=r"events\.csv is missing required columns"):
+        validate_canonical_artifacts(tmp_path)

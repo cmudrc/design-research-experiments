@@ -7,9 +7,9 @@
 
 <!-- release-callout:start -->
 > [!IMPORTANT]
-> Current monthly release: [Apollo Ascent - April 2026](https://github.com/cmudrc/design-research-experiments/milestone/1)  
-> Due: April 1, 2026  
-> Tracks: March 2026 work
+> Current monthly release: [Mariner Matrix - May 2026](https://github.com/cmudrc/design-research-experiments/milestone/2)  
+> Due: May 1, 2026  
+> Tracks: April 2026 work
 <!-- release-callout:end -->
 
 `design-research-experiments` is the hypothesis-first study-definition and

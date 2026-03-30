@@ -549,10 +549,13 @@ def test_resolve_agent_prefers_explicit_bindings_before_public_exports(
         agent_bindings={"SeededRandomBaselineAgent": explicit_agent},
     )
     assert resolved is explicit_agent
-    assert agent_adapter.resolve_agent(
-        "SeededRandomBaselineAgent",
-        condition=condition,
-    ) is public_agent
+    assert (
+        agent_adapter.resolve_agent(
+            "SeededRandomBaselineAgent",
+            condition=condition,
+        )
+        is public_agent
+    )
 
 
 def test_resolve_agent_instantiates_public_agent_classes(

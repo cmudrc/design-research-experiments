@@ -6,7 +6,7 @@ import importlib
 import random
 import sys
 import time
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Mapping, Sequence
 from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -15,7 +15,7 @@ from typing import Any
 
 from tqdm.auto import tqdm
 
-from .adapters.agents import execute_agent
+from .adapters.agents import AgentBinding, execute_agent
 from .adapters.problems import evaluate_problem, resolve_problem
 from .artifacts import (
     checkpoint_run_result,
@@ -96,7 +96,7 @@ class SerialRunner:
         *,
         run_specs: Sequence[RunSpec],
         condition_by_id: Mapping[str, Condition],
-        agent_factories: Mapping[str, Callable[[Condition], Any]] | None,
+        agent_bindings: Mapping[str, AgentBinding] | None,
         problem_registry: Mapping[str, Any] | None,
         output_dir: Path,
         checkpoint: bool,
@@ -110,7 +110,7 @@ class SerialRunner:
             result = _execute_single_run(
                 run_spec=run_spec,
                 condition=condition,
-                agent_factories=agent_factories,
+                agent_bindings=agent_bindings,
                 problem_registry=problem_registry,
             )
             results.append(result)
@@ -130,7 +130,7 @@ class LocalParallelRunner:
         *,
         run_specs: Sequence[RunSpec],
         condition_by_id: Mapping[str, Condition],
-        agent_factories: Mapping[str, Callable[[Condition], Any]] | None,
+        agent_bindings: Mapping[str, AgentBinding] | None,
         problem_registry: Mapping[str, Any] | None,
         output_dir: Path,
         checkpoint: bool,
@@ -149,7 +149,7 @@ class LocalParallelRunner:
                     _execute_single_run,
                     run_spec=run_spec,
                     condition=condition,
-                    agent_factories=agent_factories,
+                    agent_bindings=agent_bindings,
                     problem_registry=problem_registry,
                 )
                 future_by_run_id[future] = run_spec.run_id
@@ -174,7 +174,7 @@ def run_study(
     study: Study,
     *,
     conditions: Sequence[Condition] | None = None,
-    agent_factories: Mapping[str, Callable[[Condition], Any]] | None = None,
+    agent_bindings: Mapping[str, AgentBinding] | None = None,
     problem_registry: Mapping[str, Any] | None = None,
     parallelism: int | None = None,
     dry_run: bool = False,
@@ -229,7 +229,7 @@ def run_study(
             new_results = serial_runner.run(
                 run_specs=pending_run_specs,
                 condition_by_id=condition_by_id,
-                agent_factories=agent_factories,
+                agent_bindings=agent_bindings,
                 problem_registry=problem_registry,
                 output_dir=output_dir,
                 checkpoint=checkpoint,
@@ -241,7 +241,7 @@ def run_study(
             new_results = parallel_runner.run(
                 run_specs=pending_run_specs,
                 condition_by_id=condition_by_id,
-                agent_factories=agent_factories,
+                agent_bindings=agent_bindings,
                 problem_registry=problem_registry,
                 output_dir=output_dir,
                 checkpoint=checkpoint,
@@ -267,7 +267,7 @@ def resume_study(
     study: Study,
     *,
     conditions: Sequence[Condition] | None = None,
-    agent_factories: Mapping[str, Callable[[Condition], Any]] | None = None,
+    agent_bindings: Mapping[str, AgentBinding] | None = None,
     problem_registry: Mapping[str, Any] | None = None,
     parallelism: int | None = None,
     checkpoint: bool = True,
@@ -278,7 +278,7 @@ def resume_study(
     return run_study(
         study,
         conditions=conditions,
-        agent_factories=agent_factories,
+        agent_bindings=agent_bindings,
         problem_registry=problem_registry,
         parallelism=parallelism,
         dry_run=False,
@@ -462,7 +462,7 @@ def _execute_single_run(
     *,
     run_spec: RunSpec,
     condition: Condition,
-    agent_factories: Mapping[str, Callable[[Condition], Any]] | None,
+    agent_bindings: Mapping[str, AgentBinding] | None,
     problem_registry: Mapping[str, Any] | None,
 ) -> RunResult:
     """Execute one run spec with failure isolation."""
@@ -482,7 +482,7 @@ def _execute_single_run(
                 run_spec=run_spec,
                 condition=condition,
                 problem_packet=problem_packet,
-                factories=agent_factories,
+                agent_bindings=agent_bindings,
             )
             for key in (
                 "model_name",

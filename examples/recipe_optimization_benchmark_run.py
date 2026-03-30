@@ -121,14 +121,14 @@ def main() -> None:
     study = drex.build_optimization_benchmark_study(config)
 
     problem_registry = _build_problem_registry(study.problem_ids)
-    agent_factories = {
+    agent_bindings = {
         "deterministic-baseline": lambda _condition: _agent_factory("deterministic-baseline"),
         "self-learning-agent": lambda _condition: _agent_factory("self-learning-agent"),
     }
 
     run_results = drex.run_study(
         study,
-        agent_factories=agent_factories,
+        agent_bindings=agent_bindings,
         problem_registry=problem_registry,
     )
 

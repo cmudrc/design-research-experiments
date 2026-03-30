@@ -94,14 +94,14 @@ def main() -> None:
 
     strategy_ids = tuple(str(level.value) for level in study.factors[0].levels)
     problem_registry = _build_problem_registry(study.problem_ids)
-    agent_factories = {
+    agent_bindings = {
         strategy_id: (lambda _condition, strategy_id=strategy_id: _agent_factory(strategy_id))
         for strategy_id in strategy_ids
     }
 
     run_results = drex.run_study(
         study,
-        agent_factories=agent_factories,
+        agent_bindings=agent_bindings,
         problem_registry=problem_registry,
     )
 

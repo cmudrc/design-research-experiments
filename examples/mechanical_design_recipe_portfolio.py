@@ -152,7 +152,7 @@ def main() -> None:
     )
 
     problem_registry = _problem_registry(bivariate_study.problem_ids)
-    agent_factories = {
+    agent_bindings = {
         agent_name: (lambda _condition, *, _agent_name=agent_name: _agent_factory(_agent_name))
         for agent_name in bivariate_study.agent_specs
     }
@@ -160,7 +160,7 @@ def main() -> None:
     run_results = drex.run_study(
         bivariate_study,
         conditions=conditions,
-        agent_factories=agent_factories,
+        agent_bindings=agent_bindings,
         problem_registry=problem_registry,
         show_progress=False,
     )

@@ -50,7 +50,6 @@ def test_public_exports_match_curated_api() -> None:
         "grammar_problem_bundle",
         "human_vs_agent_bundle",
         "ideation_bundle",
-        "make_seeded_random_baseline_factories",
         "materialize_conditions",
         "optimization_bundle",
         "render_codebook",

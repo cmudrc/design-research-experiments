@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib
 import sys
 import types
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -99,33 +100,6 @@ class _FakePackagedProblem:
         return _FakePackagedEvaluation(objective_value=float(sum(candidate)), is_feasible=True)
 
 
-class _FakeDecisionProblem:
-    """Decision-style packaged problem used for seeded baseline fallback tests."""
-
-    def __init__(self) -> None:
-        self.metadata = types.SimpleNamespace(
-            problem_id="decision-problem",
-            title="Decision Problem",
-            summary="Synthetic decision benchmark.",
-            kind=types.SimpleNamespace(value="decision"),
-        )
-        self.option_factors = (
-            types.SimpleNamespace(key="shape", levels=("round", "square")),
-            types.SimpleNamespace(key="size", levels=(1, 2, 3)),
-        )
-
-    def render_brief(self) -> str:
-        """Return a stable packaged-problem brief."""
-        return "Choose one allowed value for each factor."
-
-    def evaluate(self, candidate: dict[str, object]) -> dict[str, object]:
-        """Return a simple objective for a selected candidate."""
-        return {
-            "objective_value": 1.0 if candidate.get("shape") == "round" else 0.0,
-            "higher_is_better": True,
-        }
-
-
 @dataclass(frozen=True)
 class _FakeUsage:
     """Usage payload for fake execution-result tests."""
@@ -185,6 +159,38 @@ class _CallableAgent:
             ],
             "trace_refs": ["trace.json"],
             "metadata": {"model_name": "fake-model"},
+        }
+
+
+class _PromptWorkflowAgent:
+    """Prompt-building agent double used for binding tests."""
+
+    def __init__(
+        self,
+        *,
+        prompt_builder: Callable[[object, object, object], str],
+    ) -> None:
+        self._prompt_builder = prompt_builder
+
+    def run(
+        self,
+        prompt: str | object,
+        *,
+        request_id: str | None = None,
+        dependencies: dict[str, object] | None = None,
+    ) -> dict[str, Any]:
+        """Resolve one prompt from dependencies and return a normalized payload."""
+        del prompt
+        assert dependencies is not None
+        return {
+            "output": {
+                "text": self._prompt_builder(
+                    dependencies["problem_packet"],
+                    dependencies["run_spec"],
+                    dependencies["condition"],
+                )
+            },
+            "metadata": {"request_id": request_id or ""},
         }
 
 
@@ -337,7 +343,7 @@ def test_agent_adapter_execution_paths(monkeypatch: pytest.MonkeyPatch) -> None:
         run_spec=run_spec,
         condition=condition,
         problem_packet=problem_packet,
-        factories={"agent-a": lambda _condition: _CallableAgent()},
+        agent_bindings={"agent-a": lambda _condition: _CallableAgent()},
     )
     assert execution.output["text"].startswith("p1:")
     assert execution.events[0].event_type == "assistant_output"
@@ -356,7 +362,7 @@ def test_agent_adapter_execution_paths(monkeypatch: pytest.MonkeyPatch) -> None:
     def fake_import(name: str) -> Any:
         """Provide a fake design_research_agents module."""
         if name == "design_research_agents":
-            return types.SimpleNamespace(agent_from_module=lambda: _CallableAgent())
+            return types.SimpleNamespace(agent_from_module=_CallableAgent())
         return importlib.import_module(name)
 
     monkeypatch.setattr(agent_adapter.importlib, "import_module", fake_import)
@@ -524,52 +530,70 @@ def test_agent_adapter_fallbacks_and_normalization(monkeypatch: pytest.MonkeyPat
     assert execution_result_execution.events[0].text == "native output"
 
 
-def test_seeded_random_baseline_factories_support_public_and_fallback_paths(
+def test_resolve_agent_prefers_explicit_bindings_before_public_exports(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Seeded baseline factories should use the public agent when available or fall back."""
+    """Explicit bindings should win over public agent-name resolution."""
     condition = Condition("cond-baseline", {"variant": "baseline"}, {})
-    run_spec = RunSpec(
-        run_id="run-baseline",
-        study_id="study-baseline",
-        condition_id="cond-baseline",
-        problem_id="decision-problem",
-        replicate=1,
-        seed=13,
-        agent_spec_ref="SeededRandomBaselineAgent",
-        problem_spec_ref="decision-problem",
-    )
-    problem_packet = problem_adapter.resolve_problem(_FakeDecisionProblem())
-
-    factories = agent_adapter.make_seeded_random_baseline_factories()
-    monkeypatch.setattr(agent_adapter, "_resolve_from_design_research_agents", lambda _id: None)
-
-    fallback_execution = agent_adapter.execute_agent(
-        agent_spec_ref="SeededRandomBaselineAgent",
-        run_spec=run_spec,
-        condition=condition,
-        problem_packet=problem_packet,
-        factories=factories,
-    )
-    assert fallback_execution.output["candidate"]["shape"] in {"round", "square"}
-    assert fallback_execution.output["candidate"]["size"] in {1, 2, 3}
-    assert fallback_execution.events[0].event_type == "baseline_candidate_selected"
-    assert fallback_execution.metadata["agent_kind"] == "seeded_random_baseline"
-
+    explicit_agent = _CallableAgent()
     public_agent = _CallableAgent()
     monkeypatch.setattr(
         agent_adapter,
         "_resolve_from_design_research_agents",
         lambda agent_id: public_agent if agent_id == "SeededRandomBaselineAgent" else None,
     )
-    public_execution = agent_adapter.execute_agent(
-        agent_spec_ref="SeededRandomBaselineAgent",
+
+    resolved = agent_adapter.resolve_agent(
+        "SeededRandomBaselineAgent",
+        condition=condition,
+        agent_bindings={"SeededRandomBaselineAgent": explicit_agent},
+    )
+    assert resolved is explicit_agent
+    assert agent_adapter.resolve_agent(
+        "SeededRandomBaselineAgent",
+        condition=condition,
+    ) is public_agent
+
+
+def test_agent_bindings_support_fixed_executables_and_condition_builders() -> None:
+    """Agent bindings should accept direct executables and condition-scoped builders."""
+    condition = Condition("cond-build", {"variant": "builder"}, {})
+    run_spec = RunSpec(
+        run_id="run-bindings",
+        study_id="study-bindings",
+        condition_id="cond-build",
+        problem_id="problem-1",
+        replicate=1,
+        seed=17,
+        agent_spec_ref="fixed-agent",
+        problem_spec_ref="problem-1",
+    )
+    problem_packet = problem_adapter.ProblemPacket("p-public", "fam", "brief")
+
+    fixed_execution = agent_adapter.execute_agent(
+        agent_spec_ref="fixed-agent",
         run_spec=run_spec,
         condition=condition,
-        problem_packet=problem_adapter.ProblemPacket("p-public", "fam", "brief"),
-        factories=agent_adapter.make_seeded_random_baseline_factories(),
+        problem_packet=problem_packet,
+        agent_bindings={"fixed-agent": _CallableAgent()},
     )
-    assert public_execution.output["text"].startswith("p-public:")
+    assert fixed_execution.output["text"] == "p-public:17"
+
+    prompt_execution = agent_adapter.execute_agent(
+        agent_spec_ref="prompt-agent",
+        run_spec=run_spec,
+        condition=condition,
+        problem_packet=problem_packet,
+        agent_bindings={
+            "prompt-agent": lambda _condition: _PromptWorkflowAgent(
+                prompt_builder=lambda packet, spec, current_condition: (
+                    f"{packet.problem_id}:{spec.run_id}:{current_condition.condition_id}"
+                )
+            )
+        },
+    )
+    assert prompt_execution.output["text"] == "p-public:run-bindings:cond-build"
+    assert prompt_execution.metadata["request_id"] == "run-bindings"
 
 
 def test_analysis_adapter_validation_and_exports(

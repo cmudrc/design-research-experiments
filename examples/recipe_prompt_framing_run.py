@@ -125,14 +125,14 @@ def main() -> None:
     study = drex.build_prompt_framing_study(config)
 
     problem_registry = _build_problem_registry(study.problem_ids)
-    agent_factories = {
+    agent_bindings = {
         "baseline-agent": lambda _condition: _agent_factory("baseline-agent"),
         "creative-agent": lambda _condition: _agent_factory("creative-agent"),
     }
 
     run_results = drex.run_study(
         study,
-        agent_factories=agent_factories,
+        agent_bindings=agent_bindings,
         problem_registry=problem_registry,
         include_sqlite=True,
     )

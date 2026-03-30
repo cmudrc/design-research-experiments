@@ -101,7 +101,6 @@ def main() -> None:
         study,
         conditions=conditions,
         problem_registry={problem_id: problem_packet},
-        agent_factories=drex.make_seeded_random_baseline_factories(),
         show_progress=False,
     )
     exported_paths = drex.export_analysis_tables(

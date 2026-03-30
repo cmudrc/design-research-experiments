@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import importlib
 import inspect
-import random
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any
@@ -13,6 +12,23 @@ from ..conditions import Condition
 from ..schemas import Observation, ObservationLevel, ValidationError, hash_identifier, utc_now_iso
 from ..study import RunSpec
 from .problems import ProblemPacket
+
+type AgentBinding = Any | Callable[[Condition], Any]
+
+_AGENT_EXECUTION_PARAMETER_NAMES = frozenset(
+    {
+        "problem_packet",
+        "problem",
+        "brief",
+        "run_spec",
+        "condition",
+        "seed",
+        "prompt",
+        "input",
+        "request_id",
+        "dependencies",
+    }
+)
 
 
 @dataclass(slots=True)
@@ -26,52 +42,27 @@ class AgentExecution:
     metadata: dict[str, Any] = field(default_factory=dict)
 
 
-SEEDED_RANDOM_BASELINE_AGENT_ID = "SeededRandomBaselineAgent"
-
-
-def make_seeded_random_baseline_factories(
-    *,
-    agent_id: str = SEEDED_RANDOM_BASELINE_AGENT_ID,
-) -> dict[str, Callable[[Condition], Any]]:
-    """Build factories for a deterministic seeded baseline agent.
-
-    When the public `design-research-agents` baseline export is available, the
-    returned factory resolves to that implementation. Otherwise it falls back to
-    a lightweight packaged-problem sampler that keeps experiments runnable
-    without adding a mandatory dependency edge.
-    """
-
-    def factory(_condition: Condition) -> Any:
-        """Build one seeded-baseline executor for a study condition."""
-        public_agent = _resolve_from_design_research_agents(agent_id)
-        if public_agent is not None:
-            return public_agent
-        return _fallback_seeded_random_baseline
-
-    return {agent_id: factory}
-
-
 def resolve_agent(
     agent_spec_ref: Any,
     *,
     condition: Condition,
-    factories: Mapping[str, Callable[[Condition], Any]] | None = None,
+    agent_bindings: Mapping[str, AgentBinding] | None = None,
 ) -> Any:
     """Resolve an agent reference into an executable object."""
-    if isinstance(agent_spec_ref, str):
-        if factories and agent_spec_ref in factories:
-            return factories[agent_spec_ref](condition)
+    if not isinstance(agent_spec_ref, str):
+        return agent_spec_ref
 
-        maybe_agent = _resolve_from_design_research_agents(agent_spec_ref)
-        if maybe_agent is not None:
-            return maybe_agent
+    if agent_bindings and agent_spec_ref in agent_bindings:
+        return _materialize_agent_binding(agent_bindings[agent_spec_ref], condition)
 
-        raise ValidationError(
-            "Unknown agent spec "
-            f"'{agent_spec_ref}'. Register a factory or pass an executable object."
-        )
+    maybe_agent = _resolve_from_design_research_agents(agent_spec_ref)
+    if maybe_agent is not None:
+        return maybe_agent
 
-    return agent_spec_ref
+    raise ValidationError(
+        "Unknown agent spec "
+        f"'{agent_spec_ref}'. Register an agent binding or pass an executable object."
+    )
 
 
 def execute_agent(
@@ -80,10 +71,14 @@ def execute_agent(
     run_spec: RunSpec,
     condition: Condition,
     problem_packet: ProblemPacket,
-    factories: Mapping[str, Callable[[Condition], Any]] | None = None,
+    agent_bindings: Mapping[str, AgentBinding] | None = None,
 ) -> AgentExecution:
     """Execute one agent run and normalize outputs, events, and trace refs."""
-    executable = resolve_agent(agent_spec_ref, condition=condition, factories=factories)
+    executable = resolve_agent(
+        agent_spec_ref,
+        condition=condition,
+        agent_bindings=agent_bindings,
+    )
     raw = _invoke_agent(
         executable=executable,
         run_spec=run_spec,
@@ -93,19 +88,67 @@ def execute_agent(
     return _normalize_agent_execution(raw=raw, run_spec=run_spec, condition=condition)
 
 
+def _materialize_agent_binding(binding: AgentBinding, condition: Condition) -> Any:
+    """Resolve one binding into a concrete executable for the current condition."""
+    if _is_condition_scoped_binding(binding):
+        return binding(condition)
+    return binding
+
+
+def _is_condition_scoped_binding(binding: AgentBinding) -> bool:
+    """Return whether one binding is a condition-to-executable builder."""
+    if not callable(binding):
+        return False
+    if hasattr(binding, "run") and callable(binding.run):
+        return False
+
+    try:
+        parameters = inspect.signature(binding).parameters
+    except (TypeError, ValueError):
+        return False
+
+    if any(name in _AGENT_EXECUTION_PARAMETER_NAMES for name in parameters):
+        return False
+
+    if any(
+        parameter.kind in (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD)
+        for parameter in parameters.values()
+    ):
+        return False
+
+    positional_parameters = [
+        parameter
+        for parameter in parameters.values()
+        if parameter.kind in (inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD)
+    ]
+    return len(parameters) == 1 and len(positional_parameters) == 1
+
+
 def _resolve_from_design_research_agents(agent_id: str) -> Any | None:
-    """Attempt loading a public constructor from design-research-agents."""
+    """Attempt loading one public executable or zero-arg agent constructor."""
     try:
         module = importlib.import_module("design_research_agents")
-        constructor = getattr(module, agent_id, None)
+        exported = getattr(module, agent_id, None)
     except Exception:
         return None
 
-    if callable(constructor):
+    if exported is None:
+        return None
+
+    if hasattr(exported, "run") and callable(exported.run):
+        return exported
+
+    if inspect.isclass(exported):
         try:
-            return constructor()
+            return exported()
+        except TypeError:
+            return None
         except Exception:
-            return constructor
+            return None
+
+    if callable(exported):
+        return exported
+
     return None
 
 
@@ -188,7 +231,10 @@ def _invoke_callable(
     try:
         return callable_obj(problem_packet, run_spec.seed)
     except TypeError:
-        return callable_obj(problem_packet)
+        try:
+            return callable_obj(problem_packet)
+        except TypeError as exc:
+            raise ValidationError("Resolved agent object is not executable.") from exc
 
 
 def _normalize_agent_execution(
@@ -262,72 +308,6 @@ def _build_agent_dependencies(
     if problem_object is not None:
         dependencies["problem"] = problem_object
     return dependencies
-
-
-def _fallback_seeded_random_baseline(
-    *,
-    problem_packet: ProblemPacket,
-    run_spec: RunSpec,
-    seed: int,
-) -> dict[str, Any]:
-    """Return one deterministic candidate for a packaged problem object."""
-    problem_object = _problem_object_from_packet(problem_packet)
-    if problem_object is None:
-        raise ValidationError(
-            "Seeded random baseline fallback requires `problem_packet.payload['problem_object']`."
-        )
-
-    candidate = _sample_problem_candidate(problem_object, seed=seed)
-    return {
-        "output": {"candidate": candidate},
-        "events": [
-            {
-                "event_type": "baseline_candidate_selected",
-                "actor_id": "agent",
-                "text": "Generated one deterministic baseline candidate.",
-                "meta_json": {
-                    "agent_name": SEEDED_RANDOM_BASELINE_AGENT_ID,
-                    "problem_id": problem_packet.problem_id,
-                    "seed": seed,
-                },
-            }
-        ],
-        "metadata": {
-            "agent_kind": "seeded_random_baseline",
-            "request_id": run_spec.run_id,
-        },
-    }
-
-
-def _sample_problem_candidate(problem_object: Any, *, seed: int) -> Any:
-    """Sample one deterministic candidate from a packaged problem object."""
-    randomizer = random.Random(seed)
-
-    option_factors = getattr(problem_object, "option_factors", None)
-    if option_factors:
-        candidate: dict[str, Any] = {}
-        for factor in option_factors:
-            factor_key = getattr(factor, "key", None)
-            levels = tuple(getattr(factor, "levels", ()))
-            if factor_key is None or not levels:
-                continue
-            candidate[str(factor_key)] = randomizer.choice(levels)
-        if candidate:
-            return candidate
-
-    bounds = getattr(problem_object, "bounds", None)
-    lower_bounds = getattr(bounds, "lb", None)
-    upper_bounds = getattr(bounds, "ub", None)
-    if lower_bounds is not None and upper_bounds is not None:
-        return [
-            randomizer.uniform(float(lower_bound), float(upper_bound))
-            for lower_bound, upper_bound in zip(lower_bounds, upper_bounds, strict=False)
-        ]
-
-    raise ValidationError(
-        "Seeded random baseline fallback supports packaged decision problems with "
-        "`option_factors` and optimization problems exposing `bounds.lb` / `bounds.ub`."
-    )
 
 
 def _is_execution_result(raw: Any) -> bool:

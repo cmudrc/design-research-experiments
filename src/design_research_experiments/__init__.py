@@ -1,6 +1,5 @@
 """Public API exports for design-research-experiments."""
 
-from .adapters.agents import make_seeded_random_baseline_factories
 from .adapters.analysis import export_analysis_tables
 from .adapters.problems import ProblemPacket, resolve_problem
 from .bundles import (
@@ -89,7 +88,6 @@ __all__ = [
     "grammar_problem_bundle",
     "human_vs_agent_bundle",
     "ideation_bundle",
-    "make_seeded_random_baseline_factories",
     "materialize_conditions",
     "optimization_bundle",
     "render_codebook",

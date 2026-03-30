@@ -116,7 +116,7 @@ def test_run_study_executes_serial_with_callable_agent(tmp_path: Path) -> None:
 
     results = run_study(
         study,
-        agent_factories={"baseline": lambda condition: baseline_agent},
+        agent_bindings={"baseline": baseline_agent},
         dry_run=False,
     )
 

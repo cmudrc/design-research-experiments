@@ -303,7 +303,7 @@ def test_artifact_checkpoint_bundle_and_runner_paths(tmp_path: Path) -> None:
     results = run_study(
         study,
         parallelism=2,
-        agent_factories={"agent-a": lambda _condition: _agent_success},
+        agent_bindings={"agent-a": lambda _condition: _agent_success},
         checkpoint=True,
         include_sqlite=True,
     )
@@ -312,7 +312,7 @@ def test_artifact_checkpoint_bundle_and_runner_paths(tmp_path: Path) -> None:
     # Resume path should load checkpoints and preserve count.
     resumed = resume_study(
         study,
-        agent_factories={"agent-a": lambda _condition: _agent_success},
+        agent_bindings={"agent-a": lambda _condition: _agent_success},
     )
     assert len(resumed) == len(results)
 
@@ -327,7 +327,7 @@ def test_artifact_checkpoint_bundle_and_runner_paths(tmp_path: Path) -> None:
     )
     failing_results = run_study(
         failing_study,
-        agent_factories={"agent-a": lambda _condition: _agent_failure},
+        agent_bindings={"agent-a": lambda _condition: _agent_failure},
         checkpoint=False,
     )
     assert len(failing_results) == 1
@@ -420,7 +420,7 @@ def test_run_study_reports_serial_progress(tmp_path: Path, monkeypatch: pytest.M
     results = run_study(
         study,
         parallelism=1,
-        agent_factories={"agent-a": lambda _condition: _agent_success},
+        agent_bindings={"agent-a": lambda _condition: _agent_success},
         show_progress=True,
     )
 
@@ -457,7 +457,7 @@ def test_run_study_reports_parallel_progress(
     results = run_study(
         study,
         parallelism=2,
-        agent_factories={"agent-a": lambda _condition: _agent_success},
+        agent_bindings={"agent-a": lambda _condition: _agent_success},
         show_progress=True,
     )
 
@@ -498,7 +498,7 @@ def test_resume_study_progress_tracks_completed_and_pending_runs(
     results = resume_study(
         study,
         parallelism=1,
-        agent_factories={"agent-a": lambda _condition: _agent_success},
+        agent_bindings={"agent-a": lambda _condition: _agent_success},
         show_progress=True,
     )
 
@@ -527,7 +527,7 @@ def test_resume_study_with_no_pending_runs_still_closes_progress(
     run_study(
         study,
         parallelism=1,
-        agent_factories={"agent-a": lambda _condition: _agent_success},
+        agent_bindings={"agent-a": lambda _condition: _agent_success},
         checkpoint=True,
         show_progress=False,
     )
@@ -542,7 +542,7 @@ def test_resume_study_with_no_pending_runs_still_closes_progress(
     results = resume_study(
         study,
         parallelism=1,
-        agent_factories={"agent-a": lambda _condition: _agent_success},
+        agent_bindings={"agent-a": lambda _condition: _agent_success},
         show_progress=True,
     )
 

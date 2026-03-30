@@ -135,9 +135,6 @@ def _resolve_from_design_research_agents(agent_id: str) -> Any | None:
     if exported is None:
         return None
 
-    if hasattr(exported, "run") and callable(exported.run):
-        return exported
-
     if inspect.isclass(exported):
         try:
             return exported()
@@ -145,6 +142,9 @@ def _resolve_from_design_research_agents(agent_id: str) -> Any | None:
             return None
         except Exception:
             return None
+
+    if hasattr(exported, "run") and callable(exported.run):
+        return exported
 
     if callable(exported):
         return exported

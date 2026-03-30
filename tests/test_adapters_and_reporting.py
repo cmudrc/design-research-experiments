@@ -555,6 +555,48 @@ def test_resolve_agent_prefers_explicit_bindings_before_public_exports(
     ) is public_agent
 
 
+def test_resolve_agent_instantiates_public_agent_classes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Public agent-name resolution should instantiate exported classes."""
+    condition = Condition("cond-public-class", {"variant": "baseline"}, {})
+
+    class PublicAgent:
+        """Class-shaped public agent export used for resolution tests."""
+
+        def __init__(self) -> None:
+            self.marker = "instantiated"
+
+        def run(
+            self,
+            *,
+            problem_packet: problem_adapter.ProblemPacket,
+            run_spec: RunSpec,
+            condition: Condition,
+        ) -> dict[str, Any]:
+            """Return a normalized payload using the study context."""
+            return {
+                "output": {
+                    "text": f"{problem_packet.problem_id}:{run_spec.run_id}:{condition.condition_id}"
+                }
+            }
+
+    monkeypatch.setattr(
+        agent_adapter.importlib,
+        "import_module",
+        lambda module_name: (
+            types.SimpleNamespace(SeededRandomBaselineAgent=PublicAgent)
+            if module_name == "design_research_agents"
+            else importlib.import_module(module_name)
+        ),
+    )
+
+    resolved = agent_adapter.resolve_agent("SeededRandomBaselineAgent", condition=condition)
+
+    assert isinstance(resolved, PublicAgent)
+    assert resolved.marker == "instantiated"
+
+
 def test_agent_bindings_support_fixed_executables_and_condition_builders() -> None:
     """Agent bindings should accept direct executables and condition-scoped builders."""
     condition = Condition("cond-build", {"variant": "builder"}, {})

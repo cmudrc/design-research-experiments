@@ -577,7 +577,9 @@ def test_resolve_agent_instantiates_public_agent_classes(
             """Return a normalized payload using the study context."""
             return {
                 "output": {
-                    "text": f"{problem_packet.problem_id}:{run_spec.run_id}:{condition.condition_id}"
+                    "text": (
+                        f"{problem_packet.problem_id}:{run_spec.run_id}:{condition.condition_id}"
+                    )
                 }
             }
 

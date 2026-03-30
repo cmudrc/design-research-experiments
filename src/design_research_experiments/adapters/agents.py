@@ -119,7 +119,11 @@ def _is_condition_scoped_binding(binding: AgentBinding) -> bool:
     positional_parameters = [
         parameter
         for parameter in parameters.values()
-        if parameter.kind in (inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD)
+        if parameter.kind
+        in (
+            inspect.Parameter.POSITIONAL_ONLY,
+            inspect.Parameter.POSITIONAL_OR_KEYWORD,
+        )
     ]
     return len(parameters) == 1 and len(positional_parameters) == 1
 

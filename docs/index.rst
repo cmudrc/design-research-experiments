@@ -13,31 +13,35 @@ just another execution utility. It encodes experimental method in software and
 is where design choices about rigor, admissibility, and reproducibility are
 made.
 
-.. raw:: html
+.. container:: drc-home-badges
 
-   <div class="drc-badge-row">
-     <a class="drc-badge-link" href="https://github.com/cmudrc/design-research-experiments/actions/workflows/ci.yml">
-       <img alt="CI" src="https://github.com/cmudrc/design-research-experiments/actions/workflows/ci.yml/badge.svg">
-     </a>
-     <a class="drc-badge-link" href="https://github.com/cmudrc/design-research-experiments/actions/workflows/ci.yml">
-       <img alt="Coverage" src="https://raw.githubusercontent.com/cmudrc/design-research-experiments/main/.github/badges/coverage.svg">
-     </a>
-     <a class="drc-badge-link" href="https://github.com/cmudrc/design-research-experiments/actions/workflows/examples.yml">
-       <img alt="Examples Passing" src="https://raw.githubusercontent.com/cmudrc/design-research-experiments/main/.github/badges/examples-passing.svg">
-     </a>
-     <a class="drc-badge-link" href="https://github.com/cmudrc/design-research-experiments/actions/workflows/examples.yml">
-       <img alt="Public API In Examples" src="https://raw.githubusercontent.com/cmudrc/design-research-experiments/main/.github/badges/examples-api-coverage.svg">
-     </a>
-     <a class="drc-badge-link" href="https://github.com/cmudrc/design-research-experiments/actions/workflows/docs-pages.yml">
-       <img alt="Docs" src="https://github.com/cmudrc/design-research-experiments/actions/workflows/docs-pages.yml/badge.svg">
-     </a>
-   </div>
+   .. raw:: html
 
-.. note::
+      <div class="drc-badge-row">
+        <a class="drc-badge-link" href="https://github.com/cmudrc/design-research-experiments/actions/workflows/ci.yml">
+          <img alt="CI" src="https://github.com/cmudrc/design-research-experiments/actions/workflows/ci.yml/badge.svg">
+        </a>
+        <a class="drc-badge-link" href="https://github.com/cmudrc/design-research-experiments/actions/workflows/ci.yml">
+          <img alt="Coverage" src="https://raw.githubusercontent.com/cmudrc/design-research-experiments/main/.github/badges/coverage.svg">
+        </a>
+        <a class="drc-badge-link" href="https://github.com/cmudrc/design-research-experiments/actions/workflows/examples.yml">
+          <img alt="Examples Passing" src="https://raw.githubusercontent.com/cmudrc/design-research-experiments/main/.github/badges/examples-passing.svg">
+        </a>
+        <a class="drc-badge-link" href="https://github.com/cmudrc/design-research-experiments/actions/workflows/examples.yml">
+          <img alt="Public API In Examples" src="https://raw.githubusercontent.com/cmudrc/design-research-experiments/main/.github/badges/examples-api-coverage.svg">
+        </a>
+        <a class="drc-badge-link" href="https://github.com/cmudrc/design-research-experiments/actions/workflows/docs-pages.yml">
+          <img alt="Docs" src="https://github.com/cmudrc/design-research-experiments/actions/workflows/docs-pages.yml/badge.svg">
+        </a>
+      </div>
 
-   **Start with** :doc:`quickstart` to define a first study, materialize a
-   concrete condition set, and get into a reproducible local loop before
-   branching into examples, recipes, and reference material.
+.. container:: drc-home-callout
+
+   .. note::
+
+      **Start with** :doc:`quickstart` to define a first study, materialize a
+      concrete condition set, and get into a reproducible local loop before
+      branching into examples, recipes, and reference material.
 
 Guides
 ------
@@ -87,10 +91,13 @@ studying human and AI design behavior.
 Together these libraries support end-to-end design research pipelines, from
 study design through execution and interpretation.
 
-.. image:: _static/ecosystem-platform.svg
-   :alt: Ecosystem diagram showing experiments above agents, problems, and analysis.
-   :width: 100%
-   :align: center
+.. container:: drc-home-ecosystem
+
+   .. image:: _static/ecosystem-platform.svg
+      :alt: Ecosystem diagram showing experiments above agents, problems, and analysis.
+      :class: dark-light drc-ecosystem-figure
+      :width: 100%
+      :align: center
 
 Start Here
 ----------

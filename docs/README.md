@@ -34,7 +34,7 @@ Use `:doc:` for internal links and link to sibling ecosystem docs when describin
 
 - The ecosystem figure is the source of truth for package colors.
 - This repo's canonical docs brand color is `#57B7BA`.
-- Keep docs CSS tokens, `drc-light.png`, `drc-dark.png`, and `favicon.ico` aligned when updating docs styling.
+- Keep docs CSS tokens, `drc-light.png`, `drc-dark.png`, `favicon-light.ico`, `favicon-dark.ico`, and fallback `favicon.ico` aligned when updating docs styling.
 
 ## API Page Updates
 

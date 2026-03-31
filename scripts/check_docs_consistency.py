@@ -10,14 +10,33 @@ API_PATH = DOCS_DIR / "api.rst"
 README_PATH = Path("README.md")
 
 
+def _normalize_toctree_entry(entry: str) -> str | None:
+    """Return one internal toctree target when the entry points at a docs page.
+
+    Args:
+        entry: Raw toctree entry line content.
+
+    Returns:
+        Internal document target without the ``.rst`` suffix, or ``None`` for
+        external links.
+    """
+    normalized = entry.strip()
+    if "<" in normalized and normalized.endswith(">"):
+        _, _, remainder = normalized.rpartition("<")
+        normalized = remainder[:-1].strip()
+    if "://" in normalized or normalized.startswith("mailto:"):
+        return None
+    return normalized.removesuffix(".rst")
+
+
 def extract_toctree_entries(index_path: Path) -> tuple[str, ...]:
-    """Extract document entries from the first toctree in `index.rst`.
+    """Extract internal document entries from all toctrees in `index.rst`.
 
     Args:
         index_path: Path to the docs index file.
 
     Returns:
-        The referenced document names without suffixes.
+        Referenced internal document names without suffixes.
     """
     entries: list[str] = []
     in_toctree = False
@@ -33,9 +52,11 @@ def extract_toctree_entries(index_path: Path) -> tuple[str, ...]:
         if stripped.startswith(":"):
             continue
         if line.startswith("   "):
-            entries.append(stripped)
+            normalized = _normalize_toctree_entry(stripped)
+            if normalized is not None:
+                entries.append(normalized)
             continue
-        break
+        in_toctree = False
     return tuple(entries)
 
 

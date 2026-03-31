@@ -3,6 +3,9 @@ design-research-experiments
 
 The study-design and orchestration layer for reproducible design research.
 
+What This Library Does
+----------------------
+
 ``design-research-experiments`` defines study structure: hypotheses, factors,
 blocking, admissible conditions, replications, and artifact flows. It
 coordinates how agents, problems, and downstream analysis are connected in a
@@ -34,6 +37,24 @@ made.
           <img alt="Docs" src="https://github.com/cmudrc/design-research-experiments/actions/workflows/docs-pages.yml/badge.svg">
         </a>
       </div>
+
+Highlights
+----------
+
+- Study schemas for hypotheses, factors, blocking, admissible conditions, and replications
+- Artifact contracts that connect runs, events, and evaluation outputs
+- Reproducible condition materialization and execution helpers
+- Runnable examples and recipes for study-definition workflows
+- Integration points that wire agents, problems, and downstream analysis together
+
+Typical Workflow
+----------------
+
+1. Define hypotheses, factors, blocking, and admissible conditions.
+2. Materialize concrete study conditions and replication plans.
+3. Execute runs across agents and problems while preserving artifact contracts.
+4. Export standardized artifacts for downstream analysis and reporting.
+5. Reuse examples and recipes to benchmark or extend the protocol.
 
 .. container:: drc-home-callout
 
@@ -112,6 +133,7 @@ Start Here
 
 .. toctree::
    :maxdepth: 2
+   :caption: Guides
    :hidden:
 
    quickstart
@@ -121,8 +143,27 @@ Start Here
    study_structure_example
    examples_and_recipes
    artifact_contract
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Examples
+   :hidden:
+
    examples/index
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Reference
+   :hidden:
+
    api
    cli_reference
    reference/index
    dependencies_and_extras
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Development
+   :hidden:
+
+   CONTRIBUTING.md <https://github.com/cmudrc/design-research-experiments/blob/main/CONTRIBUTING.md>

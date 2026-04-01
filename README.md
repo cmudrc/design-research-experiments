@@ -1,8 +1,8 @@
 # design-research-experiments
 [![CI](https://github.com/cmudrc/design-research-experiments/actions/workflows/ci.yml/badge.svg)](https://github.com/cmudrc/design-research-experiments/actions/workflows/ci.yml)
-[![Coverage](https://raw.githubusercontent.com/cmudrc/design-research-experiments/main/.github/badges/coverage.svg)](https://github.com/cmudrc/design-research-experiments/actions/workflows/ci.yml)
-[![Examples Passing](https://raw.githubusercontent.com/cmudrc/design-research-experiments/main/.github/badges/examples-passing.svg)](https://github.com/cmudrc/design-research-experiments/actions/workflows/examples.yml)
-[![Public API In Examples](https://raw.githubusercontent.com/cmudrc/design-research-experiments/main/.github/badges/examples-api-coverage.svg)](https://github.com/cmudrc/design-research-experiments/actions/workflows/examples.yml)
+[![Coverage](https://raw.githubusercontent.com/cmudrc/design-research-experiments/HEAD/.github/badges/coverage.svg)](https://github.com/cmudrc/design-research-experiments/actions/workflows/ci.yml)
+[![Examples Passing](https://raw.githubusercontent.com/cmudrc/design-research-experiments/HEAD/.github/badges/examples-passing.svg)](https://github.com/cmudrc/design-research-experiments/actions/workflows/examples.yml)
+[![Public API In Examples](https://raw.githubusercontent.com/cmudrc/design-research-experiments/HEAD/.github/badges/examples-api-coverage.svg)](https://github.com/cmudrc/design-research-experiments/actions/workflows/examples.yml)
 [![Docs](https://github.com/cmudrc/design-research-experiments/actions/workflows/docs-pages.yml/badge.svg)](https://github.com/cmudrc/design-research-experiments/actions/workflows/docs-pages.yml)
 
 <!-- release-callout:start -->
@@ -73,7 +73,7 @@ drexp bundle-results path/to/output_dir
 
 ## Examples
 
-See [examples/README.md](https://github.com/cmudrc/design-research-experiments/blob/main/examples/README.md)
+See [examples/README.md](https://github.com/cmudrc/design-research-experiments/blob/HEAD/examples/README.md)
 for runnable scripts, including end-to-end recipe executions.
 
 ## Docs
@@ -105,4 +105,4 @@ Top-level exports are intentionally small:
 ## Contributing
 
 Contribution workflow and quality gates are documented in
-[CONTRIBUTING.md](https://github.com/cmudrc/design-research-experiments/blob/main/CONTRIBUTING.md).
+[CONTRIBUTING.md](https://github.com/cmudrc/design-research-experiments/blob/HEAD/CONTRIBUTING.md).

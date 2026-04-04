@@ -5,9 +5,9 @@ This page documents the shared docs and CI baseline for
 ``design-research-experiments``.
 
 The experiments repo follows the common module pattern used across the family:
-docs surfaces are checked for consistency, example health is reported
-explicitly, and release-facing README callouts are maintained separately from
-the docs build itself.
+docs surfaces are checked for consistency and example health is reported
+explicitly. Release state is tracked in GitHub milestones and release branches
+instead of generated README callouts.
 
 Shared Module Baseline
 ----------------------
@@ -43,10 +43,6 @@ Shared Module Baseline
      - ``scripts/check_example_api_coverage.py``
      - ``examples.yml``
      - Examples continue to exercise the documented public import surface.
-   * - Release callout upkeep
-     - ``scripts/update_release_readme.py``
-     - ``update-release-readme.yml``
-     - README release callouts stay aligned with the active monthly release train.
 
 Workflow Responsibilities
 -------------------------
@@ -54,7 +50,6 @@ Workflow Responsibilities
 - ``ci.yml`` owns lint, type, test, coverage, docs-consistency, and docstring checks.
 - ``examples.yml`` owns example execution, generated example docs, and example-derived badge metrics.
 - ``docs-pages.yml`` owns the published docs build.
-- ``update-release-readme.yml`` owns README release-callout refresh.
 - ``workflow.yml`` remains the aggregate maintainer workflow entry point.
 
 Experiments-Specific Notes

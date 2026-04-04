@@ -62,7 +62,9 @@ Typical Workflow
 
       **Start with** :doc:`quickstart` to define a first study, materialize a
       concrete condition set, and get into a reproducible local loop before
-      branching into examples, recipes, and reference material.
+      branching into examples, recipes, and reference material. If you are
+      integrating downstream tooling, keep :doc:`artifact_contract` open beside
+      the quickstart so the public export guarantees stay explicit.
 
 Guides
 ------
@@ -97,6 +99,7 @@ development extras.
 - :doc:`cli_reference`
 - :doc:`reference/index`
 - :doc:`dependencies_and_extras`
+- :doc:`automation_baseline`
 
 Integration With The Ecosystem
 ------------------------------
@@ -129,6 +132,8 @@ Start Here
 - :doc:`typical_workflow`
 - :doc:`examples/index`
 - :doc:`api`
+- :doc:`artifact_contract`
+- :doc:`automation_baseline`
 - `CONTRIBUTING.md <https://github.com/cmudrc/design-research-experiments/blob/HEAD/CONTRIBUTING.md>`_
 
 .. toctree::
@@ -160,6 +165,7 @@ Start Here
    cli_reference
    reference/index
    dependencies_and_extras
+   automation_baseline
 
 .. toctree::
    :maxdepth: 1

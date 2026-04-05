@@ -827,7 +827,9 @@ def test_real_stack_interoperability_contracts(tmp_path: Path) -> None:
     )
 
     problem_id = "gmpb_default_dynamic_min"
-    resolved_problem = problems_module.integration.resolve_problem_binding(problem_id).problem_object
+    resolved_problem = problems_module.integration.resolve_problem_binding(
+        problem_id
+    ).problem_object
     resolved_packet = problem_adapter.resolve_problem(problem_id)
     assert resolved_packet.problem_id == problem_id
     assert resolved_packet.family == resolved_problem.metadata.kind.value

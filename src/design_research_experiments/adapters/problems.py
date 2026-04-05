@@ -149,9 +149,11 @@ def _packet_from_problem_binding(binding: Any, *, owner_integration: Any) -> Pro
         brief=str(binding.brief),
         payload={"problem_object": binding.problem_object},
         metadata=dict(binding.metadata),
-        evaluator=lambda run_output, current_binding=binding: owner_integration.evaluate_problem_output(
-            current_binding,
-            run_output,
+        evaluator=lambda run_output, current_binding=binding: (
+            owner_integration.evaluate_problem_output(
+                current_binding,
+                run_output,
+            )
         ),
     )
 

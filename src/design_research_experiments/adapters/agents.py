@@ -74,7 +74,9 @@ def execute_agent(
     agent_bindings: Mapping[str, AgentBinding] | None = None,
 ) -> AgentExecution:
     """Execute one agent run and normalize outputs, events, and trace refs."""
-    if isinstance(agent_spec_ref, str) and not (agent_bindings and agent_spec_ref in agent_bindings):
+    if isinstance(agent_spec_ref, str) and not (
+        agent_bindings and agent_spec_ref in agent_bindings
+    ):
         owner_integration = _load_agents_integration_module()
         if owner_integration is None:
             raise ValidationError(

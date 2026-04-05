@@ -145,6 +145,7 @@ def _packet_from_problem_binding(binding: Any, *, owner_integration: Any) -> Pro
     """Convert one owner-owned `ProblemBinding` into the experiments packet shape."""
 
     def _evaluate_bound_problem(run_output: Mapping[str, Any]) -> Any:
+        """Route one run output through the owner package evaluator."""
         return owner_integration.evaluate_problem_output(binding, run_output)
 
     return ProblemPacket(

@@ -133,6 +133,18 @@ def _record_progress_factory(
     return _factory
 
 
+def _standalone_problem_registry(*problem_ids: str) -> dict[str, dict[str, object]]:
+    """Build one explicit native problem registry for standalone runner tests."""
+    return {
+        problem_id: {
+            "problem_id": problem_id,
+            "family": "test_problem",
+            "brief": f"Standalone brief for {problem_id}",
+        }
+        for problem_id in problem_ids
+    }
+
+
 @dataclass(slots=True)
 class _FakeTqdmBar:
     """Minimal tqdm-compatible spy used for adapter tests."""
@@ -304,6 +316,7 @@ def test_artifact_checkpoint_bundle_and_runner_paths(tmp_path: Path) -> None:
         study,
         parallelism=2,
         agent_bindings={"agent-a": lambda _condition: _agent_success},
+        problem_registry=_standalone_problem_registry(*study.problem_ids),
         checkpoint=True,
         include_sqlite=True,
     )
@@ -313,6 +326,7 @@ def test_artifact_checkpoint_bundle_and_runner_paths(tmp_path: Path) -> None:
     resumed = resume_study(
         study,
         agent_bindings={"agent-a": lambda _condition: _agent_success},
+        problem_registry=_standalone_problem_registry(*study.problem_ids),
     )
     assert len(resumed) == len(results)
 
@@ -328,6 +342,7 @@ def test_artifact_checkpoint_bundle_and_runner_paths(tmp_path: Path) -> None:
     failing_results = run_study(
         failing_study,
         agent_bindings={"agent-a": lambda _condition: _agent_failure},
+        problem_registry=_standalone_problem_registry(*failing_study.problem_ids),
         checkpoint=False,
     )
     assert len(failing_results) == 1
@@ -421,6 +436,7 @@ def test_run_study_reports_serial_progress(tmp_path: Path, monkeypatch: pytest.M
         study,
         parallelism=1,
         agent_bindings={"agent-a": lambda _condition: _agent_success},
+        problem_registry=_standalone_problem_registry(*study.problem_ids),
         show_progress=True,
     )
 
@@ -458,6 +474,7 @@ def test_run_study_reports_parallel_progress(
         study,
         parallelism=2,
         agent_bindings={"agent-a": lambda _condition: _agent_success},
+        problem_registry=_standalone_problem_registry(*study.problem_ids),
         show_progress=True,
     )
 
@@ -499,6 +516,7 @@ def test_resume_study_progress_tracks_completed_and_pending_runs(
         study,
         parallelism=1,
         agent_bindings={"agent-a": lambda _condition: _agent_success},
+        problem_registry=_standalone_problem_registry(*study.problem_ids),
         show_progress=True,
     )
 
@@ -528,6 +546,7 @@ def test_resume_study_with_no_pending_runs_still_closes_progress(
         study,
         parallelism=1,
         agent_bindings={"agent-a": lambda _condition: _agent_success},
+        problem_registry=_standalone_problem_registry(*study.problem_ids),
         checkpoint=True,
         show_progress=False,
     )
@@ -543,6 +562,7 @@ def test_resume_study_with_no_pending_runs_still_closes_progress(
         study,
         parallelism=1,
         agent_bindings={"agent-a": lambda _condition: _agent_success},
+        problem_registry=_standalone_problem_registry(*study.problem_ids),
         show_progress=True,
     )
 

@@ -143,6 +143,7 @@ def _packet_from_mapping(problem_spec_ref: Mapping[str, Any]) -> ProblemPacket:
 
 def _packet_from_problem_binding(binding: Any, *, owner_integration: Any) -> ProblemPacket:
     """Convert one owner-owned `ProblemBinding` into the experiments packet shape."""
+
     def _evaluate_bound_problem(run_output: Mapping[str, Any]) -> Any:
         return owner_integration.evaluate_problem_output(binding, run_output)
 

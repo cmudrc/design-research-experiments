@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 import runpy
+import types
 from pathlib import Path
 
 from design_research_experiments import cli
@@ -29,11 +30,51 @@ def test_cli_roundtrip_commands(tmp_path: Path, monkeypatch: object) -> None:
     study.to_yaml(study_path)
 
     import design_research_experiments.adapters.agents as adapter_agents
+    import design_research_experiments.adapters.problems as adapter_problems
+
+    fake_problem_integration = types.SimpleNamespace(
+        resolve_problem_binding=lambda problem_id: types.SimpleNamespace(
+            problem_id=str(problem_id),
+            family="cli-family",
+            brief=f"Brief {problem_id}",
+            metadata={},
+            problem_object={"problem_id": problem_id},
+        ),
+        evaluate_problem_output=lambda _binding, _run_output: [],
+    )
+
+    def _execute_agent_run(
+        _agent_id: str,
+        *,
+        prompt: object,
+        request_id: str | None,
+        dependencies: dict[str, object],
+        agent_bindings: dict[str, object] | None = None,
+    ) -> object:
+        del prompt, agent_bindings
+        raw = _mock_agent(
+            problem_packet=dependencies["problem_packet"],
+            seed=int(dependencies["seed"]),
+        )
+        return types.SimpleNamespace(
+            output=raw["output"],
+            metrics=raw["metrics"],
+            events=raw["events"],
+            trace_refs=raw.get("trace_refs", []),
+            metadata={"request_id": request_id or ""},
+        )
+
+    fake_agent_integration = types.SimpleNamespace(execute_agent_run=_execute_agent_run)
 
     monkeypatch.setattr(
         adapter_agents,
-        "_resolve_from_design_research_agents",
-        lambda agent_id: _mock_agent if agent_id == "agent-a" else None,
+        "_load_agents_integration_module",
+        lambda: fake_agent_integration,
+    )
+    monkeypatch.setattr(
+        adapter_problems,
+        "_load_problems_integration_module",
+        lambda: fake_problem_integration,
     )
 
     assert cli.main(["validate-study", str(study_path)]) == 0
@@ -62,9 +103,26 @@ def test_cli_run_study_dry_run(tmp_path: Path, monkeypatch: object) -> None:
     study.to_json(study_path)
 
     import design_research_experiments.adapters.agents as adapter_agents
+    import design_research_experiments.adapters.problems as adapter_problems
 
     monkeypatch.setattr(
-        adapter_agents, "_resolve_from_design_research_agents", lambda _id: _mock_agent
+        adapter_agents,
+        "_load_agents_integration_module",
+        lambda: types.SimpleNamespace(execute_agent_run=lambda *args, **kwargs: None),
+    )
+    monkeypatch.setattr(
+        adapter_problems,
+        "_load_problems_integration_module",
+        lambda: types.SimpleNamespace(
+            resolve_problem_binding=lambda problem_id: types.SimpleNamespace(
+                problem_id=str(problem_id),
+                family="cli-family",
+                brief=f"Brief {problem_id}",
+                metadata={},
+                problem_object={"problem_id": problem_id},
+            ),
+            evaluate_problem_output=lambda _binding, _run_output: [],
+        ),
     )
 
     assert cli.main(["run-study", str(study_path), "--dry-run"]) == 0

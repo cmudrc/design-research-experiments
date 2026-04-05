@@ -1,4 +1,4 @@
-"""Problem-layer adapter utilities built on public problem APIs."""
+"""Problem-layer adapter utilities for orchestration-owned packet handling."""
 
 from __future__ import annotations
 
@@ -32,36 +32,28 @@ def resolve_problem(
     if isinstance(problem_spec_ref, ProblemPacket):
         return problem_spec_ref
 
-    if isinstance(problem_spec_ref, str):
-        if registry and problem_spec_ref in registry:
-            return registry[problem_spec_ref]
-
-        packet = _resolve_from_design_research_problems(problem_spec_ref)
-        if packet is not None:
-            return packet
-
-        return ProblemPacket(
-            problem_id=problem_spec_ref,
-            family="unknown",
-            brief=problem_spec_ref,
-            payload={"problem_id": problem_spec_ref},
-            metadata={},
-        )
+    if isinstance(problem_spec_ref, str) and registry and problem_spec_ref in registry:
+        return _packet_from_registry_entry(registry[problem_spec_ref])
 
     if isinstance(problem_spec_ref, Mapping):
-        return ProblemPacket(
-            problem_id=str(problem_spec_ref.get("problem_id", "problem")),
-            family=str(problem_spec_ref.get("family", "unknown")),
-            brief=str(problem_spec_ref.get("brief", "")),
-            payload=dict(cast(Mapping[str, Any], problem_spec_ref.get("payload", {}))),
-            metadata=dict(cast(Mapping[str, Any], problem_spec_ref.get("metadata", {}))),
-            evaluator=cast(
-                Callable[[Mapping[str, Any]], Any] | None,
-                problem_spec_ref.get("evaluator"),
-            ),
-        )
+        return _packet_from_mapping(problem_spec_ref)
 
-    return _packet_from_object(problem_spec_ref)
+    if isinstance(problem_spec_ref, str):
+        owner_integration = _load_problems_integration_module()
+        if owner_integration is None:
+            raise ValidationError(
+                "String problem references now require `design_research_problems.integration`. "
+                "Install the coordinated monthly release or pass an explicit `ProblemPacket` "
+                "through `problem_registry`."
+            )
+        binding = owner_integration.resolve_problem_binding(problem_spec_ref)
+        return _packet_from_problem_binding(binding, owner_integration=owner_integration)
+
+    raise ValidationError(
+        "Standalone design-research-experiments accepts only `ProblemPacket` instances, "
+        "explicit packet mappings, or string problem ids resolved through "
+        "`design_research_problems.integration`."
+    )
 
 
 def evaluate_problem(
@@ -120,132 +112,66 @@ def sample_problem_packets(
     return sampled
 
 
-def _resolve_from_design_research_problems(problem_id: str) -> ProblemPacket | None:
-    """Attempt resolving from the upstream design-research-problems package."""
-    try:
-        module = importlib.import_module("design_research_problems")
-        get_problem = getattr(module, "get_problem", None)
-    except Exception:
-        return None
+def _packet_from_registry_entry(problem_ref: Any) -> ProblemPacket:
+    """Resolve one explicit registry entry into a packet."""
+    if isinstance(problem_ref, ProblemPacket):
+        return problem_ref
+    if isinstance(problem_ref, Mapping):
+        return _packet_from_mapping(problem_ref)
 
-    if not callable(get_problem):
-        return None
-
-    try:
-        problem_obj = get_problem(problem_id)
-    except Exception:
-        return None
-
-    return _packet_from_object(problem_obj, fallback_problem_id=problem_id)
-
-
-def _packet_from_object(problem_obj: Any, fallback_problem_id: str | None = None) -> ProblemPacket:
-    """Normalize an arbitrary problem-like object into a `ProblemPacket`."""
-    metadata_object = getattr(problem_obj, "metadata", None)
-    problem_id = _stringify_first(
-        getattr(metadata_object, "problem_id", None),
-        getattr(problem_obj, "problem_id", None),
-        fallback_problem_id,
-        "problem",
-    )
-    family = _stringify_first(
-        _value_or_enum(getattr(metadata_object, "kind", None)),
-        getattr(problem_obj, "family", None),
-        problem_obj.__class__.__name__,
+    raise ValidationError(
+        "Problem registries now require `ProblemPacket` values or explicit packet "
+        "mappings. Resolve packaged sibling problems by string id through "
+        "`design_research_problems.integration`."
     )
 
-    brief = _resolve_problem_brief(problem_obj, fallback=problem_id)
 
-    evaluator = getattr(problem_obj, "evaluate", None)
-    if evaluator is not None and not callable(evaluator):
-        raise ValidationError("Problem evaluator must be callable when present.")
-
-    payload = {
-        "problem_object": problem_obj,
-    }
-
-    metadata = {
-        "problem_class": problem_obj.__class__.__name__,
-    }
-    metadata.update(_extract_problem_metadata(problem_obj))
-
+def _packet_from_mapping(problem_spec_ref: Mapping[str, Any]) -> ProblemPacket:
+    """Build one packet from an explicit mapping payload."""
     return ProblemPacket(
-        problem_id=problem_id,
-        family=family,
-        brief=brief,
-        payload=payload,
-        metadata=metadata,
-        evaluator=cast(Callable[[Mapping[str, Any]], Any] | None, evaluator),
+        problem_id=str(problem_spec_ref.get("problem_id", "problem")),
+        family=str(problem_spec_ref.get("family", "unknown")),
+        brief=str(problem_spec_ref.get("brief", "")),
+        payload=dict(cast(Mapping[str, Any], problem_spec_ref.get("payload", {}))),
+        metadata=dict(cast(Mapping[str, Any], problem_spec_ref.get("metadata", {}))),
+        evaluator=cast(
+            Callable[[Mapping[str, Any]], Any] | None,
+            problem_spec_ref.get("evaluator"),
+        ),
     )
 
 
-def _resolve_problem_brief(problem_obj: Any, *, fallback: str) -> str:
-    """Resolve the richest available human-readable brief for a problem object."""
-    render_brief = getattr(problem_obj, "render_brief", None)
-    if callable(render_brief):
+def _packet_from_problem_binding(binding: Any, *, owner_integration: Any) -> ProblemPacket:
+    """Convert one owner-owned `ProblemBinding` into the experiments packet shape."""
+    return ProblemPacket(
+        problem_id=str(binding.problem_id),
+        family=str(binding.family),
+        brief=str(binding.brief),
+        payload={"problem_object": binding.problem_object},
+        metadata=dict(binding.metadata),
+        evaluator=lambda run_output, current_binding=binding: owner_integration.evaluate_problem_output(
+            current_binding,
+            run_output,
+        ),
+    )
+
+
+def _load_problems_integration_module() -> Any | None:
+    """Return the packaged problem-integration module when available."""
+    try:
+        return importlib.import_module("design_research_problems.integration")
+    except ImportError as exc:
         try:
-            rendered = render_brief()
-        except TypeError:
-            rendered = None
-        except Exception:
-            rendered = None
-        normalized = _normalize_text(rendered)
-        if normalized is not None:
-            return normalized
-
-    for attribute_name in ("statement_markdown", "brief", "prompt"):
-        normalized = _normalize_text(getattr(problem_obj, attribute_name, None))
-        if normalized is not None:
-            return normalized
-
-    metadata_object = getattr(problem_obj, "metadata", None)
-    normalized_summary = _normalize_text(getattr(metadata_object, "summary", None))
-    if normalized_summary is not None:
-        return normalized_summary
-    normalized_title = _normalize_text(getattr(metadata_object, "title", None))
-    if normalized_title is not None:
-        return normalized_title
-    return fallback
+            importlib.import_module("design_research_problems")
+        except ImportError:
+            return None
+        raise ValidationError(
+            "design-research-problems is installed but does not expose the package-owned "
+            "`integration` module. Upgrade to the coordinated monthly release."
+        ) from exc
 
 
-def _extract_problem_metadata(problem_obj: Any) -> dict[str, Any]:
-    """Extract interoperable metadata from a packaged problem-like object."""
-    metadata_object = getattr(problem_obj, "metadata", None)
-    metadata: dict[str, Any] = {}
-
-    title = _normalize_text(getattr(metadata_object, "title", None))
-    if title is not None:
-        metadata["title"] = title
-
-    summary = _normalize_text(getattr(metadata_object, "summary", None))
-    if summary is not None:
-        metadata["summary"] = summary
-
-    problem_kind = _value_or_enum(getattr(metadata_object, "kind", None))
-    normalized_kind = _normalize_text(problem_kind)
-    if normalized_kind is not None:
-        metadata["problem_kind"] = normalized_kind
-
-    capabilities = _string_sequence(getattr(metadata_object, "capabilities", None))
-    if capabilities:
-        metadata["capabilities"] = capabilities
-
-    study_suitability = _string_sequence(getattr(metadata_object, "study_suitability", None))
-    if study_suitability:
-        metadata["study_suitability"] = study_suitability
-
-    feature_flags = _string_sequence(getattr(metadata_object, "feature_flags", None))
-    if feature_flags:
-        metadata["feature_flags"] = feature_flags
-
-    implementation = _normalize_text(getattr(metadata_object, "implementation", None))
-    if implementation is not None:
-        metadata["implementation"] = implementation
-
-    return metadata
-
-
-def _resolve_evaluator_input(packet: ProblemPacket, run_output: Mapping[str, Any]) -> Any:
+def _resolve_evaluator_input(_packet: ProblemPacket, run_output: Mapping[str, Any]) -> Any:
     """Resolve the best evaluator input for packaged and external problem evaluators."""
     preferred_keys = ("candidate", "state", "answer", "solution", "final_answer", "x")
     for key in preferred_keys:
@@ -330,38 +256,6 @@ def _normalize_evaluation_row(row: Mapping[str, Any]) -> dict[str, Any]:
         "aggregation_level": str(row.get("aggregation_level", "run")),
         "notes_json": row.get("notes_json", {}),
     }
-
-
-def _value_or_enum(value: Any) -> Any:
-    """Return an enum's value when present, otherwise the original value."""
-    enum_value = getattr(value, "value", None)
-    if enum_value is not None:
-        return enum_value
-    return value
-
-
-def _stringify_first(*values: Any) -> str:
-    """Return the first non-empty stringified value."""
-    for value in values:
-        normalized = _normalize_text(value)
-        if normalized is not None:
-            return normalized
-    return ""
-
-
-def _string_sequence(value: Any) -> tuple[str, ...]:
-    """Normalize a loose sequence of values to a stable string tuple."""
-    if not isinstance(value, Sequence) or isinstance(value, (str, bytes)):
-        return ()
-    return tuple(str(item) for item in value if _normalize_text(item) is not None)
-
-
-def _normalize_text(value: Any) -> str | None:
-    """Normalize one optional value to non-empty text."""
-    if value is None:
-        return None
-    normalized = str(value).strip()
-    return normalized or None
 
 
 def _is_metric_scalar(value: Any) -> bool:

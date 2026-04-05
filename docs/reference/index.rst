@@ -25,7 +25,8 @@ Primary modules and responsibilities:
 - ``design_research_experiments.runners``: execution orchestration, resume, checkpoint flow.
 - ``design_research_experiments.artifacts``: canonical exports, manifests, and bundling.
 - ``design_research_experiments.recipes``: reusable function-based study templates.
-- ``design_research_experiments.adapters``: integration glue for agents/problems/analysis.
+- ``design_research_experiments.adapters``: thin orchestration glue that delegates
+  sibling-package interoperability to owner-owned ``integration`` modules.
 - ``design_research_experiments.io``: YAML/JSON/CSV/SQLite persistence helpers.
 
 .. toctree::

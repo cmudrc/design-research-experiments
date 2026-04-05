@@ -36,7 +36,12 @@ This package centers on reproducible experiment structure and execution:
 - canonical artifact exports (`study.yaml`, `manifest.json`, `conditions.csv`,
   `runs.csv`, `events.csv`, `evaluations.csv`, and machine-readable hypothesis/plan files)
 - documented artifact contracts that downstream analysis can ingest directory-first
-- thin adapters that connect to the public APIs of sibling agent/problem/analysis libraries
+- thin orchestration adapters that delegate sibling-package interoperability to
+  `design_research_problems.integration`, `design_research_agents.integration`,
+  and `design_research_analysis.integration`
+
+`design-research-experiments` itself is the orchestration surface. There is
+intentionally no separate `design_research_experiments.integration` module.
 
 ## Quickstart
 

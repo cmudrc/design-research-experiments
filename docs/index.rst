@@ -45,7 +45,10 @@ Highlights
 - Artifact contracts that connect runs, events, and evaluation outputs
 - Reproducible condition materialization and execution helpers
 - Runnable examples and recipes for study-definition workflows
-- Integration points that wire agents, problems, and downstream analysis together
+- Orchestration adapters that delegate sibling-package seams to
+  ``design_research_problems.integration``,
+  ``design_research_agents.integration``, and
+  ``design_research_analysis.integration``
 
 Typical Workflow
 ----------------

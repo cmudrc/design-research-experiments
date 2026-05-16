@@ -9,6 +9,7 @@ from collections import Counter
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from enum import StrEnum
+from importlib import import_module
 from pathlib import Path
 from typing import Any, TypeGuard
 
@@ -267,10 +268,7 @@ def _latin_hypercube_scipy(
     seed: int,
 ) -> list[dict[str, float]]:
     """Generate LHS samples with SciPy's QMC implementation."""
-    try:
-        from scipy.stats import qmc
-    except ImportError as exc:
-        raise ValidationError(_DOE_IMPORT_ERROR) from exc
+    qmc = _import_scipy_qmc()
 
     factor_names = list(factors)
     lows: list[float] = []
@@ -380,10 +378,7 @@ def _fractional_factorial_pydoe3(
         raise ValidationError(
             "Resolution-III fractional templates currently support between 2 and 6 factors."
         )
-    try:
-        from pyDOE3 import fracfact
-    except ImportError as exc:
-        raise ValidationError(_DOE_IMPORT_ERROR) from exc
+    fracfact = _import_pydoe3_fracfact()
 
     generator = " ".join(("a", "b", "c", "abc", "ac", "bc")[: len(factor_names)])
     matrix = fracfact(generator)
@@ -391,6 +386,23 @@ def _fractional_factorial_pydoe3(
     for row in matrix:
         rows.append({name: float(value) for name, value in zip(factor_names, row, strict=True)})
     return rows
+
+
+def _import_scipy_qmc() -> Any:
+    """Import SciPy QMC lazily for optional DOE backends."""
+    try:
+        return import_module("scipy.stats.qmc")
+    except ImportError as exc:
+        raise ValidationError(_DOE_IMPORT_ERROR) from exc
+
+
+def _import_pydoe3_fracfact() -> Any:
+    """Import pyDOE3's fractional-factorial generator lazily."""
+    try:
+        module = import_module("pyDOE3")
+    except ImportError as exc:
+        raise ValidationError(_DOE_IMPORT_ERROR) from exc
+    return module.fracfact
 
 
 def design_balance_report(rows: Sequence[Mapping[str, Any]]) -> dict[str, dict[str, float]]:

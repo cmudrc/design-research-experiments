@@ -8,6 +8,13 @@
 [![Examples Passing](https://raw.githubusercontent.com/cmudrc/design-research-experiments/HEAD/.github/badges/examples-passing.svg)](https://github.com/cmudrc/design-research-experiments/actions/workflows/examples.yml)
 [![Public API In Examples](https://raw.githubusercontent.com/cmudrc/design-research-experiments/HEAD/.github/badges/examples-api-coverage.svg)](https://github.com/cmudrc/design-research-experiments/actions/workflows/examples.yml)
 
+<!-- release-callout:start -->
+> [!IMPORTANT]
+> Current monthly release: [Juno Journey - May 2026](https://github.com/cmudrc/design-research-experiments/milestone/3)  
+> Due: June 1, 2026  
+> Tracks: May 2026 work
+<!-- release-callout:end -->
+
 `design-research-experiments` is the hypothesis-first study-definition and
 experiment-orchestration layer in the cmudrc design research ecosystem.
 

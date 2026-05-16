@@ -46,14 +46,17 @@ def render_markdown_summary(study: Study, run_results: Sequence[RunResult]) -> s
     return "\n".join(lines)
 
 
-def render_significance_brief(analysis_rows: Sequence[Mapping[str, Any]]) -> str:
+def render_significance_brief(
+    analysis_rows: Sequence[Mapping[str, Any]] | object,
+) -> str:
     """Render a short significance/effect-size brief from analysis outputs."""
+    normalized_rows = _normalize_significance_rows(analysis_rows)
     lines = ["## Significance Brief"]
-    if not analysis_rows:
+    if not normalized_rows:
         lines.append("- No analysis rows provided.")
         return "\n".join(lines)
 
-    for row in analysis_rows:
+    for row in normalized_rows:
         test_name = row.get("test", "test")
         outcome = row.get("outcome", "outcome")
         p_value = row.get("p_value", "n/a")
@@ -107,3 +110,19 @@ def write_markdown_report(output_dir: str | Path, filename: str, content: str) -
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content, encoding="utf-8")
     return path
+
+
+def _normalize_significance_rows(
+    analysis_rows: Sequence[Mapping[str, Any]] | object,
+) -> list[Mapping[str, Any]]:
+    """Normalize analysis-report inputs to the row shape used by this renderer."""
+    if isinstance(analysis_rows, Sequence) and not isinstance(analysis_rows, (str, bytes)):
+        return [row for row in analysis_rows if isinstance(row, Mapping)]
+
+    to_rows = getattr(analysis_rows, "to_significance_rows", None)
+    if callable(to_rows):
+        candidate = to_rows()
+        if isinstance(candidate, Sequence) and not isinstance(candidate, (str, bytes)):
+            return [row for row in candidate if isinstance(row, Mapping)]
+
+    return []

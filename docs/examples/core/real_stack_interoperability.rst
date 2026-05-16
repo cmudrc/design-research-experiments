@@ -13,7 +13,7 @@ contract with `design-research-analysis`'s artifact-first integration API.
 Technical Implementation
 ------------------------
 
-1. Bootstrap sibling `src/` directories from the local workspace when present.
+1. Import the package-owned `integration` modules from installed sibling libraries.
 2. Execute a one-run study that uses a packaged optimization problem together
    with `SeededRandomBaselineAgent`.
 3. Export canonical artifacts and validate the event table through the analysis

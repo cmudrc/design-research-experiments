@@ -286,9 +286,7 @@ def _latin_hypercube_scipy(
     samples = qmc.scale(sampler.random(n=n_samples), lows, highs)
     rows: list[dict[str, float]] = []
     for row in samples:
-        rows.append(
-            {name: float(value) for name, value in zip(factor_names, row, strict=True)}
-        )
+        rows.append({name: float(value) for name, value in zip(factor_names, row, strict=True)})
     return rows
 
 
@@ -391,9 +389,7 @@ def _fractional_factorial_pydoe3(
     matrix = fracfact(generator)
     rows: list[dict[str, float]] = []
     for row in matrix:
-        rows.append(
-            {name: float(value) for name, value in zip(factor_names, row, strict=True)}
-        )
+        rows.append({name: float(value) for name, value in zip(factor_names, row, strict=True)})
     return rows
 
 

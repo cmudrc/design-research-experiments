@@ -1,12 +1,11 @@
 # design-research-experiments
 [![CI](https://github.com/cmudrc/design-research-experiments/actions/workflows/ci.yml/badge.svg)](https://github.com/cmudrc/design-research-experiments/actions/workflows/ci.yml)
-[![Docs](https://github.com/cmudrc/design-research-experiments/actions/workflows/docs-pages.yml/badge.svg)](https://github.com/cmudrc/design-research-experiments/actions/workflows/docs-pages.yml)
-[![PyPI Version](https://img.shields.io/pypi/v/design-research-experiments.svg)](https://pypi.org/project/design-research-experiments/)
-[![Python Versions](https://img.shields.io/pypi/pyversions/design-research-experiments.svg)](https://pypi.org/project/design-research-experiments/)
-<br>
 [![Coverage](https://raw.githubusercontent.com/cmudrc/design-research-experiments/HEAD/.github/badges/coverage.svg)](https://github.com/cmudrc/design-research-experiments/actions/workflows/ci.yml)
 [![Examples Passing](https://raw.githubusercontent.com/cmudrc/design-research-experiments/HEAD/.github/badges/examples-passing.svg)](https://github.com/cmudrc/design-research-experiments/actions/workflows/examples.yml)
 [![Public API In Examples](https://raw.githubusercontent.com/cmudrc/design-research-experiments/HEAD/.github/badges/examples-api-coverage.svg)](https://github.com/cmudrc/design-research-experiments/actions/workflows/examples.yml)
+[![Docs](https://github.com/cmudrc/design-research-experiments/actions/workflows/docs-pages.yml/badge.svg)](https://github.com/cmudrc/design-research-experiments/actions/workflows/docs-pages.yml)
+[![PyPI Version](https://img.shields.io/pypi/v/design-research-experiments.svg)](https://pypi.org/project/design-research-experiments/)
+[![Python Versions](https://img.shields.io/pypi/pyversions/design-research-experiments.svg)](https://pypi.org/project/design-research-experiments/)
 
 <!-- release-callout:start -->
 > [!IMPORTANT]

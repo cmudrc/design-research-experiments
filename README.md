@@ -64,6 +64,10 @@ drexp export-analysis path/to/study.yaml
 drexp bundle-results path/to/output_dir
 ```
 
+Install `design-research-experiments[doe]` to enable optional SciPy/QMC and
+pyDOE3 backends for `generate-doe --backend ...`; the stdlib backend remains
+the default.
+
 ## Examples
 
 See [examples/README.md](https://github.com/cmudrc/design-research-experiments/blob/HEAD/examples/README.md)

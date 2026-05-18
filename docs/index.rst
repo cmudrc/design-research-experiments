@@ -53,8 +53,8 @@ Highlights
 - Runnable examples and recipes for study-definition workflows
 - Orchestration adapters that delegate sibling-package seams to
   ``design_research_problems.integration``,
-  ``design_research_agents.integration``, and
-  ``design_research_analysis.integration``
+  ``design_research_agents.integration``, and the top-level
+  ``design_research_analysis`` artifact API
 
 Typical Workflow
 ----------------

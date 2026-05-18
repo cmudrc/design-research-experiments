@@ -61,6 +61,10 @@ def evaluate_problem(
     run_output: Mapping[str, Any],
 ) -> list[dict[str, Any]]:
     """Execute family-specific evaluation when available and normalize rows."""
+    owner_rows = _evaluate_owner_problem(packet, run_output)
+    if owner_rows is not None:
+        return owner_rows
+
     if packet.evaluator is None:
         return []
 
@@ -143,18 +147,16 @@ def _packet_from_mapping(problem_spec_ref: Mapping[str, Any]) -> ProblemPacket:
 
 def _packet_from_problem_binding(binding: Any, *, owner_integration: Any) -> ProblemPacket:
     """Convert one owner-owned `ProblemBinding` into the experiments packet shape."""
-
-    def _evaluate_bound_problem(run_output: Mapping[str, Any]) -> Any:
-        """Route one run output through the owner package evaluator."""
-        return owner_integration.evaluate_problem_output(binding, run_output)
-
     return ProblemPacket(
         problem_id=str(binding.problem_id),
         family=str(binding.family),
         brief=str(binding.brief),
-        payload={"problem_object": binding.problem_object},
+        payload={
+            "problem_object": binding.problem_object,
+            "_owner_problem_binding": binding,
+            "_owner_problem_integration": owner_integration,
+        },
         metadata=dict(binding.metadata),
-        evaluator=_evaluate_bound_problem,
     )
 
 
@@ -180,6 +182,29 @@ def _resolve_evaluator_input(_packet: ProblemPacket, run_output: Mapping[str, An
         if key in run_output:
             return run_output[key]
     return run_output
+
+
+def _evaluate_owner_problem(
+    packet: ProblemPacket,
+    run_output: Mapping[str, Any],
+) -> list[dict[str, Any]] | None:
+    """Delegate packaged-problem evaluation to the owning problem library."""
+    owner_integration = packet.payload.get("_owner_problem_integration")
+    binding = packet.payload.get("_owner_problem_binding")
+    if owner_integration is None or binding is None:
+        return None
+
+    evaluate = getattr(owner_integration, "evaluate_problem_output", None)
+    if not callable(evaluate):
+        raise ValidationError(
+            "design-research-problems is installed but does not expose "
+            "`evaluate_problem_output(...)`. Upgrade to the coordinated monthly release."
+        )
+
+    rows = evaluate(binding, run_output)
+    if not isinstance(rows, Sequence) or isinstance(rows, (str, bytes)):
+        raise ValidationError("Packaged problem evaluation must return a sequence of rows.")
+    return [dict(cast(Mapping[str, Any], row)) for row in rows if isinstance(row, Mapping)]
 
 
 def _normalize_evaluation_payload(raw: Any) -> list[dict[str, Any]]:

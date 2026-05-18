@@ -131,18 +131,7 @@ def _execute_via_owner_integration(
         dependencies=dependencies,
         agent_bindings=agent_bindings,
     )
-    return AgentExecution(
-        output=dict(getattr(envelope, "output", {})),
-        metrics=dict(getattr(envelope, "metrics", {})),
-        events=_normalize_events(
-            raw_events=getattr(envelope, "events", []),
-            run_spec=run_spec,
-            condition=condition,
-            output=dict(getattr(envelope, "output", {})),
-        ),
-        trace_refs=list(getattr(envelope, "trace_refs", [])),
-        metadata=dict(getattr(envelope, "metadata", {})),
-    )
+    return _agent_execution_from_envelope(envelope, run_spec=run_spec, condition=condition)
 
 
 def _load_agents_integration_module() -> Any | None:
@@ -320,6 +309,14 @@ def _normalize_agent_execution(
     condition: Condition,
 ) -> AgentExecution:
     """Normalize raw execution output to canonical adapter shape."""
+    owner_normalized = _normalize_with_owner_integration(
+        raw,
+        run_spec=run_spec,
+        condition=condition,
+    )
+    if owner_normalized is not None:
+        return owner_normalized
+
     if _is_execution_result(raw):
         return _normalize_execution_result(raw=raw, run_spec=run_spec, condition=condition)
 
@@ -353,6 +350,50 @@ def _normalize_agent_execution(
         output=output,
     )
     return AgentExecution(output=output, metrics={}, events=events, trace_refs=[], metadata={})
+
+
+def _normalize_with_owner_integration(
+    raw: Any,
+    *,
+    run_spec: RunSpec,
+    condition: Condition,
+) -> AgentExecution | None:
+    """Use design-research-agents normalization when it is available."""
+    try:
+        owner_integration = _load_agents_integration_module()
+    except ValidationError:
+        return None
+    if owner_integration is None:
+        return None
+
+    normalizer = getattr(owner_integration, "normalize_agent_execution", None)
+    if not callable(normalizer):
+        return None
+
+    envelope = normalizer(raw, request_id=run_spec.run_id)
+    return _agent_execution_from_envelope(envelope, run_spec=run_spec, condition=condition)
+
+
+def _agent_execution_from_envelope(
+    envelope: Any,
+    *,
+    run_spec: RunSpec,
+    condition: Condition,
+) -> AgentExecution:
+    """Convert an owner-normalized envelope into experiment observations."""
+    output = dict(getattr(envelope, "output", {}))
+    return AgentExecution(
+        output=output,
+        metrics=dict(getattr(envelope, "metrics", {})),
+        events=_normalize_events(
+            raw_events=getattr(envelope, "events", []),
+            run_spec=run_spec,
+            condition=condition,
+            output=output,
+        ),
+        trace_refs=list(getattr(envelope, "trace_refs", [])),
+        metadata=dict(getattr(envelope, "metadata", {})),
+    )
 
 
 def _problem_object_from_packet(problem_packet: ProblemPacket) -> Any | None:

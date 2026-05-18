@@ -37,7 +37,7 @@ This package centers on reproducible experiment structure and execution:
 - documented artifact contracts that downstream analysis can ingest directory-first
 - thin orchestration adapters that delegate sibling-package interoperability to
   `design_research_problems.integration`, `design_research_agents.integration`,
-  and `design_research_analysis.integration`
+  and the top-level `design_research_analysis` artifact API
 
 `design-research-experiments` itself is the orchestration surface. There is
 intentionally no separate `design_research_experiments.integration` module.

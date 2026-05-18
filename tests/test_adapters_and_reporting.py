@@ -244,6 +244,8 @@ def test_problem_adapter_resolution_and_sampling(monkeypatch: pytest.MonkeyPatch
     resolved = problem_adapter.resolve_problem("p-upstream")
     assert resolved.family == "fake-family"
     assert calls == ["p-upstream"]
+    owner_rows = problem_adapter.evaluate_problem(resolved, {"text": "owner"})
+    assert owner_rows[0]["metric_value"] == len("owner")
 
     sampled = problem_adapter.sample_problem_packets(
         ["p1", "p2", "p3", "p4"],
@@ -821,15 +823,9 @@ def test_real_stack_interoperability_contracts(tmp_path: Path) -> None:
         "design_research_analysis",
         repo_name="design-research-analysis",
     )
-    analysis_integration = _import_sibling_module(
-        "design_research_analysis.integration",
-        repo_name="design-research-analysis",
-    )
 
     problem_id = "gmpb_default_dynamic_min"
-    resolved_problem = problems_module.integration.resolve_problem_binding(
-        problem_id
-    ).problem_object
+    resolved_problem = problems_module.get_problem(problem_id)
     resolved_packet = problem_adapter.resolve_problem(problem_id)
     assert resolved_packet.problem_id == problem_id
     assert resolved_packet.family == resolved_problem.metadata.kind.value
@@ -865,14 +861,11 @@ def test_real_stack_interoperability_contracts(tmp_path: Path) -> None:
         output_dir=tmp_path / "real-stack-analysis",
         validate_with_analysis_package=True,
     )
-    report = analysis_integration.validate_experiment_events(exported["events.csv"])
-    loaded = analysis_integration.load_experiment_artifacts(exported["events.csv"])
-    metric_rows = analysis_module.build_condition_metric_table(
-        csv_io.read_csv(loaded["runs.csv"]),
+    report = analysis_module.validate_experiment_events(exported["events.csv"])
+    metric_rows = analysis_module.build_condition_metric_table_from_artifacts(
+        exported["events.csv"],
         metric="primary_outcome",
         condition_column="agent_id",
-        conditions=csv_io.read_csv(loaded["conditions.csv"]),
-        evaluations=csv_io.read_csv(loaded["evaluations.csv"]),
     )
     assert report.is_valid
     assert metric_rows

@@ -133,10 +133,10 @@ ecosystem integrations fail loudly rather than silently emitting malformed
 artifacts.
 
 Downstream consumers should treat the output directory itself as the handoff
-unit. ``design-research-analysis`` reads the exported files through
-``design_research_analysis.integration.load_experiment_artifacts(...)`` and
-validates ``events.csv`` through
-``design_research_analysis.integration.validate_experiment_events(...)``.
+unit. ``design-research-analysis`` reads and validates exported files through
+top-level helpers such as
+``design_research_analysis.build_condition_metric_table_from_artifacts(...)``
+and ``design_research_analysis.validate_experiment_events(...)``.
 
 Compatibility Boundary
 ----------------------

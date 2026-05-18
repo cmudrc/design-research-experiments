@@ -37,6 +37,42 @@ class DryRunReport:
     planned_runs: int
 
 
+def agent_result(
+    output: Mapping[str, Any] | str | None = None,
+    *,
+    metrics: Mapping[str, Any] | None = None,
+    events: Sequence[Mapping[str, Any]] | None = None,
+    metadata: Mapping[str, Any] | None = None,
+    trace_refs: Sequence[str] | None = None,
+) -> dict[str, Any]:
+    """Build the canonical return payload for a custom study agent.
+
+    Args:
+        output: Final agent output. Strings are wrapped as ``{"text": output}``.
+        metrics: Optional run metrics such as ``primary_outcome`` or token counts.
+        events: Optional process-event rows emitted by the agent.
+        metadata: Optional model, pattern, or trace metadata.
+        trace_refs: Optional paths or ids for external trace artifacts.
+
+    Returns:
+        Mapping accepted by ``run_study`` custom agent bindings.
+    """
+    if output is None:
+        normalized_output: dict[str, Any] = {}
+    elif isinstance(output, str):
+        normalized_output = {"text": output}
+    else:
+        normalized_output = dict(output)
+
+    return {
+        "output": normalized_output,
+        "metrics": dict(metrics or {}),
+        "events": [dict(event) for event in events or ()],
+        "metadata": dict(metadata or {}),
+        "trace_refs": [str(trace_ref) for trace_ref in trace_refs or ()],
+    }
+
+
 class _NoOpProgressBar:
     """Progress-bar shim used when visual progress is disabled."""
 

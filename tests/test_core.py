@@ -11,8 +11,27 @@ from design_research_experiments.adapters import agents as agent_adapter
 from design_research_experiments.adapters import problems as problem_adapter
 from design_research_experiments.conditions import Factor, FactorKind, Level
 from design_research_experiments.hypotheses import AnalysisPlan, Hypothesis, OutcomeSpec
-from design_research_experiments.runners import run_study
+from design_research_experiments.runners import agent_result, run_study
 from design_research_experiments.study import RunBudget, SeedPolicy, Study, validate_study
+
+
+def test_agent_result_builds_custom_agent_payload() -> None:
+    """Helper should wrap simple custom-agent results in runner-friendly shape."""
+    result = agent_result(
+        "hello",
+        metrics={"primary_outcome": 0.8},
+        events=[{"event_type": "assistant_output", "text": "hello"}],
+        metadata={"model_name": "demo-model"},
+        trace_refs=(Path("trace.jsonl"),),
+    )
+
+    assert result == {
+        "output": {"text": "hello"},
+        "metrics": {"primary_outcome": 0.8},
+        "events": [{"event_type": "assistant_output", "text": "hello"}],
+        "metadata": {"model_name": "demo-model"},
+        "trace_refs": ["trace.jsonl"],
+    }
 
 
 def test_validate_study_detects_unknown_hypothesis_dependent_variable() -> None:

@@ -35,6 +35,7 @@ def test_public_exports_match_curated_api() -> None:
         "StrategyComparisonConfig",
         "Study",
         "UnivariateComparisonConfig",
+        "agent_result",
         "build_agent_architecture_comparison_study",
         "build_bivariate_comparison_study",
         "build_design",

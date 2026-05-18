@@ -8,16 +8,16 @@ Introduction
 
 Run one packaged problem from `design-research-problems` through a public
 `design-research-agents` baseline and validate the exported `events.csv`
-contract with `design-research-analysis`'s artifact-first integration API.
+contract with `design-research-analysis`'s artifact-first helpers.
 
 Technical Implementation
 ------------------------
 
-1. Import the package-owned `integration` modules from installed sibling libraries.
+1. Import the installed sibling libraries through their package-level APIs.
 2. Execute a one-run study that uses a packaged optimization problem together
    with `SeededRandomBaselineAgent`.
 3. Export canonical artifacts and validate the event table through the analysis
-   package's artifact-first integration contract.
+   package's artifact-first helpers.
 
 .. literalinclude:: ../../../examples/real_stack_interoperability.py
    :language: python

@@ -30,6 +30,7 @@ The top-level package exports a curated public API suitable for notebook/script 
 - ``RunSpec``
 - ``RunResult``
 - ``BenchmarkBundle``
+- ``agent_result``
 - ``ideation_bundle``
 - ``optimization_bundle``
 - ``grammar_problem_bundle``

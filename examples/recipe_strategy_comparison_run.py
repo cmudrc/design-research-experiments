@@ -61,23 +61,23 @@ def _agent_factory(agent_name: str):
             f"with seed={run_seed} condition={condition.condition_id}"
         )
 
-        return {
-            "output": {"text": text},
-            "metrics": {
+        return drex.agent_result(
+            text,
+            metrics={
                 "primary_outcome": primary_outcome,
                 "input_tokens": 130,
                 "output_tokens": 210,
                 "cost_usd": 0.019,
             },
-            "events": [
+            events=[
                 {
                     "event_type": "assistant_output",
                     "text": text,
                     "actor_id": compared_agent,
                 }
             ],
-            "metadata": {"model_name": "example-model"},
-        }
+            metadata={"model_name": "example-model"},
+        )
 
     return _agent
 

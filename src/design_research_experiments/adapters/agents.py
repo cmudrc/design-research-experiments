@@ -1,4 +1,4 @@
-"""Agent-layer adapter utilities built on public agent APIs."""
+"""Agent-layer adapter utilities built on package-owned and explicit agent APIs."""
 
 from __future__ import annotations
 
@@ -74,6 +74,24 @@ def execute_agent(
     agent_bindings: Mapping[str, AgentBinding] | None = None,
 ) -> AgentExecution:
     """Execute one agent run and normalize outputs, events, and trace refs."""
+    if isinstance(agent_spec_ref, str) and not (
+        agent_bindings and agent_spec_ref in agent_bindings
+    ):
+        owner_integration = _load_agents_integration_module()
+        if owner_integration is None:
+            raise ValidationError(
+                "String agent references now require `design_research_agents.integration`. "
+                "Install the coordinated monthly release or use an explicit binding/object."
+            )
+        return _execute_via_owner_integration(
+            owner_integration=owner_integration,
+            agent_spec_ref=agent_spec_ref,
+            run_spec=run_spec,
+            condition=condition,
+            problem_packet=problem_packet,
+            agent_bindings=agent_bindings,
+        )
+
     executable = resolve_agent(
         agent_spec_ref,
         condition=condition,
@@ -86,6 +104,49 @@ def execute_agent(
         problem_packet=problem_packet,
     )
     return _normalize_agent_execution(raw=raw, run_spec=run_spec, condition=condition)
+
+
+def _execute_via_owner_integration(
+    *,
+    owner_integration: Any,
+    agent_spec_ref: str,
+    run_spec: RunSpec,
+    condition: Condition,
+    problem_packet: ProblemPacket,
+    agent_bindings: Mapping[str, AgentBinding] | None = None,
+) -> AgentExecution:
+    """Execute one string agent reference through the package-owned integration surface."""
+    problem_object = _problem_object_from_packet(problem_packet)
+    dependencies = _build_agent_dependencies(
+        problem_packet=problem_packet,
+        problem_object=problem_object,
+        run_spec=run_spec,
+        condition=condition,
+    )
+    prompt_input = _select_agent_prompt_input(problem_packet, problem_object=problem_object)
+    envelope = owner_integration.execute_agent_run(
+        agent_spec_ref,
+        prompt=prompt_input,
+        request_id=run_spec.run_id,
+        dependencies=dependencies,
+        agent_bindings=agent_bindings,
+    )
+    return _agent_execution_from_envelope(envelope, run_spec=run_spec, condition=condition)
+
+
+def _load_agents_integration_module() -> Any | None:
+    """Return the packaged agent-integration module when available."""
+    try:
+        return importlib.import_module("design_research_agents.integration")
+    except ImportError as exc:
+        try:
+            importlib.import_module("design_research_agents")
+        except ImportError:
+            return None
+        raise ValidationError(
+            "design-research-agents is installed but does not expose the package-owned "
+            "`integration` module. Upgrade to the coordinated monthly release."
+        ) from exc
 
 
 def _materialize_agent_binding(binding: AgentBinding, condition: Condition) -> Any:
@@ -248,6 +309,14 @@ def _normalize_agent_execution(
     condition: Condition,
 ) -> AgentExecution:
     """Normalize raw execution output to canonical adapter shape."""
+    owner_normalized = _normalize_with_owner_integration(
+        raw,
+        run_spec=run_spec,
+        condition=condition,
+    )
+    if owner_normalized is not None:
+        return owner_normalized
+
     if _is_execution_result(raw):
         return _normalize_execution_result(raw=raw, run_spec=run_spec, condition=condition)
 
@@ -281,6 +350,50 @@ def _normalize_agent_execution(
         output=output,
     )
     return AgentExecution(output=output, metrics={}, events=events, trace_refs=[], metadata={})
+
+
+def _normalize_with_owner_integration(
+    raw: Any,
+    *,
+    run_spec: RunSpec,
+    condition: Condition,
+) -> AgentExecution | None:
+    """Use design-research-agents normalization when it is available."""
+    try:
+        owner_integration = _load_agents_integration_module()
+    except ValidationError:
+        return None
+    if owner_integration is None:
+        return None
+
+    normalizer = getattr(owner_integration, "normalize_agent_execution", None)
+    if not callable(normalizer):
+        return None
+
+    envelope = normalizer(raw, request_id=run_spec.run_id)
+    return _agent_execution_from_envelope(envelope, run_spec=run_spec, condition=condition)
+
+
+def _agent_execution_from_envelope(
+    envelope: Any,
+    *,
+    run_spec: RunSpec,
+    condition: Condition,
+) -> AgentExecution:
+    """Convert an owner-normalized envelope into experiment observations."""
+    output = dict(getattr(envelope, "output", {}))
+    return AgentExecution(
+        output=output,
+        metrics=dict(getattr(envelope, "metrics", {})),
+        events=_normalize_events(
+            raw_events=getattr(envelope, "events", []),
+            run_spec=run_spec,
+            condition=condition,
+            output=output,
+        ),
+        trace_refs=list(getattr(envelope, "trace_refs", [])),
+        metadata=dict(getattr(envelope, "metadata", {})),
+    )
 
 
 def _problem_object_from_packet(problem_packet: ProblemPacket) -> Any | None:

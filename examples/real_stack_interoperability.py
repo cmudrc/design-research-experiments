@@ -3,14 +3,14 @@
 ## Introduction
 Run one packaged problem from `design-research-problems` through a public
 `design-research-agents` baseline and validate the exported `events.csv`
-contract with `design-research-analysis`'s artifact-first integration API.
+contract with `design-research-analysis`'s artifact-first helpers.
 
 ## Technical Implementation
-1. Bootstrap sibling `src/` directories from the local workspace when present.
+1. Import the installed sibling libraries through their package-level APIs.
 2. Execute a one-run study that uses a packaged optimization problem together
    with `SeededRandomBaselineAgent`.
 3. Export canonical artifacts and validate the event table through the analysis
-   package's artifact-first integration contract.
+   package's artifact-first helpers.
 
 ## Expected Results
 The script prints the packaged problem identity, one successful run result, and
@@ -20,47 +20,26 @@ the exported artifact filenames after the event table passes validation.
 from __future__ import annotations
 
 import importlib
-import sys
 from pathlib import Path
+from typing import Any
 
 import design_research_experiments as drex
 
 
-def _bootstrap_sibling_sources() -> None:
-    """Add sibling package `src/` directories when the repos are checked out locally."""
-    workspace_root = Path(__file__).resolve().parents[2]
-    for repo_name in (
-        "design-research-problems",
-        "design-research-agents",
-        "design-research-analysis",
-    ):
-        src_path = workspace_root / repo_name / "src"
-        src_path_text = str(src_path)
-        if src_path.exists() and src_path_text not in sys.path:
-            sys.path.insert(0, src_path_text)
-
-
-def _load_stack_modules() -> dict[str, object] | None:
-    """Import sibling stack packages when available from the local workspace."""
-    _bootstrap_sibling_sources()
+def _load_stack_modules() -> dict[str, Any] | None:
+    """Import sibling stack packages when the coordinated libraries are installed."""
     try:
         problems_module = importlib.import_module("design_research_problems")
-        importlib.import_module("design_research_agents")
-    except ImportError as exc:
-        print(f"Real stack example skipped: {exc}")
-        return None
-
-    try:
+        agents_module = importlib.import_module("design_research_agents")
         analysis_module = importlib.import_module("design_research_analysis")
-        analysis_integration = importlib.import_module("design_research_analysis.integration")
     except ImportError as exc:
         print(f"Real stack example skipped: {exc}")
         return None
 
     return {
         "problems": problems_module,
+        "agents": agents_module,
         "analysis": analysis_module,
-        "analysis_integration": analysis_integration,
     }
 
 
@@ -71,11 +50,10 @@ def main() -> None:
         return
 
     problems_module = modules["problems"]
+    agents_module = modules["agents"]
     analysis_module = modules["analysis"]
-    analysis_integration = modules["analysis_integration"]
     problem_id = "gmpb_default_dynamic_min"
     packaged_problem = problems_module.get_problem(problem_id)
-    problem_packet = drex.resolve_problem(problem_id)
 
     study = drex.Study(
         study_id="real-stack-interoperability",
@@ -100,7 +78,6 @@ def main() -> None:
     run_results = drex.run_study(
         study,
         conditions=conditions,
-        problem_registry={problem_id: problem_packet},
         show_progress=False,
     )
     exported_paths = drex.export_analysis_tables(
@@ -110,19 +87,18 @@ def main() -> None:
         output_dir=study.output_dir / "analysis",
         validate_with_analysis_package=True,
     )
-    loaded_artifacts = analysis_integration.load_experiment_artifacts(exported_paths["events.csv"])
-    report = analysis_integration.validate_experiment_events(exported_paths["events.csv"])
-    primary_metric_rows = analysis_module.build_condition_metric_table(
-        loaded_artifacts["runs.csv"],
+    report = analysis_module.validate_experiment_events(exported_paths["events.csv"])
+    primary_metric_rows = analysis_module.build_condition_metric_table_from_artifacts(
+        exported_paths["events.csv"],
         metric="primary_outcome",
         condition_column="agent_id",
-        conditions=loaded_artifacts["conditions.csv"],
-        evaluations=loaded_artifacts["evaluations.csv"],
     )
     run_result = run_results[0]
 
     print("Problem ID:", packaged_problem.metadata.problem_id)
     print("Problem family:", packaged_problem.metadata.kind.value)
+    print("Problem package:", problems_module.__name__)
+    print("Agent package:", agents_module.__name__)
     print("Agent:", study.agent_specs[0])
     print("Completed runs:", len(run_results))
     print("Run status:", run_result.status.value)

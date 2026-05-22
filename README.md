@@ -4,6 +4,8 @@
 [![Examples Passing](https://raw.githubusercontent.com/cmudrc/design-research-experiments/HEAD/.github/badges/examples-passing.svg)](https://github.com/cmudrc/design-research-experiments/actions/workflows/examples.yml)
 [![Public API In Examples](https://raw.githubusercontent.com/cmudrc/design-research-experiments/HEAD/.github/badges/examples-api-coverage.svg)](https://github.com/cmudrc/design-research-experiments/actions/workflows/examples.yml)
 [![Docs](https://github.com/cmudrc/design-research-experiments/actions/workflows/docs-pages.yml/badge.svg)](https://github.com/cmudrc/design-research-experiments/actions/workflows/docs-pages.yml)
+[![PyPI Version](https://img.shields.io/pypi/v/design-research-experiments.svg)](https://pypi.org/project/design-research-experiments/)
+[![Python Versions](https://img.shields.io/pypi/pyversions/design-research-experiments.svg)](https://pypi.org/project/design-research-experiments/)
 
 <!-- release-callout:start -->
 > [!IMPORTANT]
@@ -33,7 +35,12 @@ This package centers on reproducible experiment structure and execution:
 - canonical artifact exports (`study.yaml`, `manifest.json`, `conditions.csv`,
   `runs.csv`, `events.csv`, `evaluations.csv`, and machine-readable hypothesis/plan files)
 - documented artifact contracts that downstream analysis can ingest directory-first
-- thin adapters that connect to the public APIs of sibling agent/problem/analysis libraries
+- thin orchestration adapters that delegate sibling-package interoperability to
+  `design_research_problems.integration`, `design_research_agents.integration`,
+  and the top-level `design_research_analysis` artifact API
+
+`design-research-experiments` itself is the orchestration surface. There is
+intentionally no separate `design_research_experiments.integration` module.
 
 ## Quickstart
 
@@ -70,6 +77,10 @@ drexp resume-study path/to/study.yaml
 drexp export-analysis path/to/study.yaml
 drexp bundle-results path/to/output_dir
 ```
+
+Install `design-research-experiments[doe]` to enable optional SciPy/QMC and
+pyDOE3 backends for `generate-doe --backend ...`; the stdlib backend remains
+the default.
 
 ## Examples
 

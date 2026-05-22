@@ -41,7 +41,7 @@ from .reporting import (
     render_significance_brief,
     write_markdown_report,
 )
-from .runners import resume_study, run_study
+from .runners import agent_result, resume_study, run_study
 from .schemas import RunBudget, SeedPolicy
 from .study import Block, RunResult, RunSpec, Study, validate_study
 
@@ -73,6 +73,7 @@ __all__ = [
     "StrategyComparisonConfig",
     "Study",
     "UnivariateComparisonConfig",
+    "agent_result",
     "build_agent_architecture_comparison_study",
     "build_bivariate_comparison_study",
     "build_design",

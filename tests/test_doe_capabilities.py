@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import importlib.util
+
 import pytest
 
 from design_research_experiments.conditions import Factor, FactorKind, Level
@@ -16,6 +18,9 @@ from design_research_experiments.designs import (
 from design_research_experiments.schemas import ValidationError
 
 from .helpers import make_study
+
+_HAS_SCIPY = importlib.util.find_spec("scipy") is not None
+_HAS_PYDOE3 = importlib.util.find_spec("pyDOE3") is not None
 
 
 def test_full_factorial_row_count_matches_level_product() -> None:
@@ -36,9 +41,32 @@ def test_latin_hypercube_is_seed_deterministic_and_bounded() -> None:
     assert all(10.0 <= float(row["y"]) <= 20.0 for row in d1)
 
 
+@pytest.mark.skipif(not _HAS_SCIPY, reason="scipy unavailable")
+def test_latin_hypercube_scipy_backend_is_seed_deterministic() -> None:
+    """Optional SciPy/QMC backend should preserve the LHS public shape."""
+    factors = {"x": (0.0, 1.0), "y": (10.0, 20.0)}
+    d1 = latin_hypercube(8, factors=factors, seed=4, backend="scipy")
+    d2 = latin_hypercube(8, factors=factors, seed=4, backend="qmc")
+
+    assert d1 == d2
+    assert len(d1) == 8
+    assert all(0.0 <= float(row["x"]) <= 1.0 for row in d1)
+    assert all(10.0 <= float(row["y"]) <= 20.0 for row in d1)
+
+
 def test_fractional_factorial_two_level_supports_resolution_three_templates() -> None:
     """Fractional 2-level utility should provide coded +/-1 rows for up to 6 factors."""
     rows = fractional_factorial_2level(["a", "b", "c", "d"], resolution="III")
+
+    assert len(rows) == 8
+    assert set(rows[0]) == {"a", "b", "c", "d"}
+    assert {value for row in rows for value in row.values()} == {-1.0, 1.0}
+
+
+@pytest.mark.skipif(not _HAS_PYDOE3, reason="pyDOE3 unavailable")
+def test_fractional_factorial_pydoe3_backend_matches_template_shape() -> None:
+    """Optional pyDOE3 backend should generate the same coded design shape."""
+    rows = fractional_factorial_2level(["a", "b", "c", "d"], resolution="III", backend="pydoe3")
 
     assert len(rows) == 8
     assert set(rows[0]) == {"a", "b", "c", "d"}
@@ -79,6 +107,7 @@ def test_generate_doe_returns_summary_and_diagnostics() -> None:
     assert set(result) == {"design", "summary", "interpretation", "warnings"}
     assert result["summary"]["n_runs"] == 4
     assert result["summary"]["design_kind"] == "full_factorial"
+    assert result["summary"]["backend"] == "stdlib"
 
 
 def test_generate_doe_supports_replicates_and_center_points() -> None:
@@ -93,6 +122,35 @@ def test_generate_doe_supports_replicates_and_center_points() -> None:
     )
     # base 4 * replicates 2 + center points 2
     assert result["summary"]["n_runs"] == 10
+
+
+@pytest.mark.skipif(not _HAS_SCIPY, reason="scipy unavailable")
+def test_generate_doe_uses_optional_lhs_backend() -> None:
+    """One-stop DOE generation should route supported LHS backend options."""
+    result = generate_doe(
+        kind="lhs",
+        factors={"x": [0.0, 1.0], "y": [10.0, 20.0]},
+        n_samples=4,
+        randomize=False,
+        backend="scipy",
+    )
+
+    assert result["summary"]["backend"] == "scipy"
+    assert result["summary"]["n_runs"] == 4
+
+
+@pytest.mark.skipif(not _HAS_PYDOE3, reason="pyDOE3 unavailable")
+def test_generate_doe_uses_optional_fractional_backend() -> None:
+    """One-stop DOE generation should route supported fractional backend options."""
+    result = generate_doe(
+        kind="frac2",
+        factors={"a": [0, 1], "b": [0, 1], "c": [0, 1], "d": [0, 1]},
+        randomize=False,
+        backend="pydoe3",
+    )
+
+    assert result["summary"]["backend"] == "pydoe3"
+    assert result["summary"]["n_runs"] == 8
 
 
 def test_build_design_supports_latin_hypercube_kind(tmp_path) -> None:

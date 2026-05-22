@@ -40,6 +40,9 @@ Generate DOE tables directly (full, lhs, frac2).
 
    drexp generate-doe --kind lhs --factors-json '{"x": [0, 1], "y": [10, 20]}' --n-samples 12 --out artifacts/doe.csv
 
+Use ``design-research-experiments[doe]`` plus ``--backend scipy``/``qmc`` for
+SciPy-backed LHS or ``--backend pydoe3`` for pyDOE3-backed fractional designs.
+
 ``run-study``
 ~~~~~~~~~~~~~
 

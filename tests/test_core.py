@@ -2,17 +2,36 @@
 
 from __future__ import annotations
 
-import importlib
 import types
 from pathlib import Path
 
 import pytest
 
 from design_research_experiments.adapters import agents as agent_adapter
+from design_research_experiments.adapters import problems as problem_adapter
 from design_research_experiments.conditions import Factor, FactorKind, Level
 from design_research_experiments.hypotheses import AnalysisPlan, Hypothesis, OutcomeSpec
-from design_research_experiments.runners import run_study
+from design_research_experiments.runners import agent_result, run_study
 from design_research_experiments.study import RunBudget, SeedPolicy, Study, validate_study
+
+
+def test_agent_result_builds_custom_agent_payload() -> None:
+    """Helper should wrap simple custom-agent results in runner-friendly shape."""
+    result = agent_result(
+        "hello",
+        metrics={"primary_outcome": 0.8},
+        events=[{"event_type": "assistant_output", "text": "hello"}],
+        metadata={"model_name": "demo-model"},
+        trace_refs=(Path("trace.jsonl"),),
+    )
+
+    assert result == {
+        "output": {"text": "hello"},
+        "metrics": {"primary_outcome": 0.8},
+        "events": [{"event_type": "assistant_output", "text": "hello"}],
+        "metadata": {"model_name": "demo-model"},
+        "trace_refs": ["trace.jsonl"],
+    }
 
 
 def test_validate_study_detects_unknown_hypothesis_dependent_variable() -> None:
@@ -122,6 +141,9 @@ def test_run_study_executes_serial_with_callable_agent(tmp_path: Path) -> None:
     results = run_study(
         study,
         agent_bindings={"baseline": baseline_agent},
+        problem_registry={
+            "problem-1": problem_adapter.ProblemPacket("problem-1", "test-family", "brief")
+        },
         dry_run=False,
     )
 
@@ -160,14 +182,32 @@ def test_run_study_supports_public_agent_ids_without_explicit_bindings(
                 "metadata": {"request_id": request_id},
             }
 
+    def execute_agent_run(
+        agent_ref: str,
+        *,
+        prompt: object,
+        request_id: str | None,
+        dependencies: dict[str, object] | None,
+        agent_bindings: dict[str, object] | None = None,
+    ) -> object:
+        del agent_bindings
+        assert agent_ref == "SeededRandomBaselineAgent"
+        assert request_id is not None
+        assert dependencies is not None
+        agent = PublicBaselineAgent()
+        raw = agent.run(prompt, request_id=request_id, dependencies=dependencies)
+        return types.SimpleNamespace(
+            output=raw["output"],
+            metrics=raw.get("metrics", {}),
+            events=raw.get("events", []),
+            trace_refs=raw.get("trace_refs", []),
+            metadata=raw.get("metadata", {}),
+        )
+
     monkeypatch.setattr(
-        agent_adapter.importlib,
-        "import_module",
-        lambda module_name: (
-            types.SimpleNamespace(SeededRandomBaselineAgent=PublicBaselineAgent)
-            if module_name == "design_research_agents"
-            else importlib.import_module(module_name)
-        ),
+        agent_adapter,
+        "_load_agents_integration_module",
+        lambda: types.SimpleNamespace(execute_agent_run=execute_agent_run),
     )
 
     study = Study(
@@ -213,6 +253,9 @@ def test_run_study_supports_public_agent_ids_without_explicit_bindings(
 
     results = run_study(
         study,
+        problem_registry={
+            "problem-1": problem_adapter.ProblemPacket("problem-1", "test-family", "brief")
+        },
         dry_run=False,
     )
 

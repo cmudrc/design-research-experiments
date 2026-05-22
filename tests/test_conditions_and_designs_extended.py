@@ -287,6 +287,8 @@ def test_design_helper_functions_cover_error_and_summary_paths(tmp_path: Path) -
     assert latin_hypercube(2, {}) == []
     with pytest.raises(ValidationError, match="high > low"):
         latin_hypercube(2, {"x": (1.0, 1.0)})
+    with pytest.raises(ValidationError, match="latin_hypercube backend"):
+        latin_hypercube(2, {"x": (0.0, 1.0)}, backend="pydoe3")
 
     assert randomize_runs([{"run": 1}], seed=1) == [{"run": 1}]
 
@@ -297,6 +299,8 @@ def test_design_helper_functions_cover_error_and_summary_paths(tmp_path: Path) -
         fractional_factorial_2level(["a"], resolution="III")
     with pytest.raises(ValidationError, match="between 2 and 6 factors"):
         fractional_factorial_2level(["a", "b", "c", "d", "e", "f", "g"], resolution="III")
+    with pytest.raises(ValidationError, match="fractional_factorial_2level backend"):
+        fractional_factorial_2level(["a", "b"], resolution="III", backend="scipy")
 
     assert append_center_points([], center_points=0) == []
     with pytest.raises(ValidationError, match="Cannot append center points"):

@@ -22,7 +22,9 @@ interactive terminals, run execution shows a ``tqdm`` progress bar by default.
 --------------------
 
 Export canonical artifacts (study manifest, conditions, runs, events,
-evaluations) for downstream analysis.
+evaluations) for downstream analysis. Treat the output directory as the stable
+handoff unit and use :doc:`artifact_contract` when another repo or external
+tool is going to build against those files.
 
 5. Connect to the next library
 ------------------------------

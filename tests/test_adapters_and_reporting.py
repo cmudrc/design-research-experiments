@@ -216,15 +216,26 @@ def test_problem_adapter_resolution_and_sampling(monkeypatch: pytest.MonkeyPatch
     calls: list[str] = []
 
     def fake_import(name: str) -> Any:
-        """Return a dynamic module for upstream problem resolution."""
-        if name == "design_research_problems":
+        """Return a dynamic module for owner-owned problem integration."""
+        if name == "design_research_problems.integration":
             module = types.SimpleNamespace()
 
-            def get_problem(problem_id: str) -> _FakeProblem:
+            def resolve_problem_binding(problem_id: str) -> Any:
                 calls.append(problem_id)
-                return _FakeProblem(problem_id)
+                problem = _FakeProblem(problem_id)
+                return types.SimpleNamespace(
+                    problem_id=problem.problem_id,
+                    family=problem.family,
+                    brief=problem.brief,
+                    metadata={"problem_class": problem.__class__.__name__},
+                    problem_object=problem,
+                )
 
-            module.get_problem = get_problem
+            def evaluate_problem_output(binding: Any, run_output: dict[str, Any]) -> Any:
+                return binding.problem_object.evaluate(run_output)
+
+            module.resolve_problem_binding = resolve_problem_binding
+            module.evaluate_problem_output = evaluate_problem_output
             return module
         return importlib.import_module(name)
 
@@ -233,6 +244,8 @@ def test_problem_adapter_resolution_and_sampling(monkeypatch: pytest.MonkeyPatch
     resolved = problem_adapter.resolve_problem("p-upstream")
     assert resolved.family == "fake-family"
     assert calls == ["p-upstream"]
+    owner_rows = problem_adapter.evaluate_problem(resolved, {"text": "owner"})
+    assert owner_rows[0]["metric_value"] == len("owner")
 
     sampled = problem_adapter.sample_problem_packets(
         ["p1", "p2", "p3", "p4"],
@@ -243,59 +256,37 @@ def test_problem_adapter_resolution_and_sampling(monkeypatch: pytest.MonkeyPatch
     assert len(sampled) == 3
 
 
-def test_problem_adapter_object_and_errors() -> None:
-    """Problem adapter should normalize objects and reject invalid evaluators."""
+def test_problem_adapter_standalone_contract_and_evaluation_normalization() -> None:
+    """Standalone experiments should stay explicit while preserving evaluator normalization."""
 
     class WithPrompt:
-        """Problem-like object using prompt fallback."""
+        """Problem-like object that standalone experiments should reject."""
 
         problem_id = "prompt-problem"
         prompt = "prompt text"
         family = "prompt-family"
 
-    normalized = problem_adapter.resolve_problem(WithPrompt())
-    assert normalized.brief == "prompt text"
-    assert problem_adapter.evaluate_problem(normalized, {}) == []
+    with pytest.raises(ValueError, match="Standalone design-research-experiments accepts only"):
+        problem_adapter.resolve_problem(WithPrompt())
 
     packaged_problem = _FakePackagedProblem()
-    packaged_packet = problem_adapter.resolve_problem(packaged_problem)
-    assert packaged_packet.problem_id == "packaged-problem"
-    assert packaged_packet.family == "optimization"
-    assert packaged_packet.brief.startswith("# Packaged Problem")
-    assert packaged_packet.metadata["title"] == "Packaged Problem"
-    assert packaged_packet.metadata["summary"] == "Synthetic packaged benchmark."
-    assert packaged_packet.metadata["problem_kind"] == "optimization"
-    assert packaged_packet.metadata["capabilities"] == (
-        "prompt-packet",
-        "optional-evaluator",
-    )
-    assert packaged_packet.metadata["study_suitability"] == ("intervention-ready",)
-
-    packaged_rows = problem_adapter.evaluate_problem(packaged_packet, {"candidate": [0.25, 0.75]})
-    assert packaged_rows[0]["metric_name"] == "objective_value"
-    assert packaged_rows[0]["metric_value"] == 1.0
-    assert packaged_rows[1]["metric_name"] == "is_feasible"
-    assert packaged_rows[1]["metric_value"] is True
+    with pytest.raises(ValueError, match="Standalone design-research-experiments accepts only"):
+        problem_adapter.resolve_problem(packaged_problem)
 
     @dataclass(frozen=True)
     class _EvaluationWithMappingProxy:
         score: float
         candidate: object
 
-    class MappingProxyEvaluatorProblem:
-        """Problem-like object whose evaluator dataclass includes a mappingproxy field."""
-
-        problem_id = "mappingproxy-problem"
-        family = "decision"
-        brief = "brief"
-
-        def evaluate(self, _candidate: object) -> _EvaluationWithMappingProxy:
-            return _EvaluationWithMappingProxy(
-                score=0.5,
-                candidate=types.MappingProxyType({"x": 1}),
-            )
-
-    mappingproxy_packet = problem_adapter.resolve_problem(MappingProxyEvaluatorProblem())
+    mappingproxy_packet = problem_adapter.ProblemPacket(
+        "mappingproxy-problem",
+        "decision",
+        "brief",
+        evaluator=lambda _candidate: _EvaluationWithMappingProxy(
+            score=0.5,
+            candidate=types.MappingProxyType({"x": 1}),
+        ),
+    )
     mappingproxy_rows = problem_adapter.evaluate_problem(
         mappingproxy_packet,
         {"candidate": {"x": 1}},
@@ -311,16 +302,23 @@ def test_problem_adapter_object_and_errors() -> None:
         }
     ]
 
-    class BadEvaluator:
-        """Problem-like object with non-callable evaluator field."""
 
-        problem_id = "bad"
-        family = "bad"
-        brief = "bad"
-        evaluate = 42
+def test_problem_adapter_raises_clear_error_for_outdated_problem_package(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """String problem ids should fail clearly when the sibling package lacks `integration`."""
 
-    with pytest.raises(ValueError):
-        problem_adapter.resolve_problem(BadEvaluator())
+    def fake_import(name: str) -> Any:
+        if name == "design_research_problems.integration":
+            raise ImportError("missing integration")
+        if name == "design_research_problems":
+            return types.SimpleNamespace()
+        return importlib.import_module(name)
+
+    monkeypatch.setattr(problem_adapter.importlib, "import_module", fake_import)
+
+    with pytest.raises(ValueError, match="does not expose the package-owned `integration` module"):
+        problem_adapter.resolve_problem("outdated-problem")
 
 
 def test_agent_adapter_execution_paths(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -360,17 +358,53 @@ def test_agent_adapter_execution_paths(monkeypatch: pytest.MonkeyPatch) -> None:
     assert mapping_execution.output["text"] == "raw-text"
 
     def fake_import(name: str) -> Any:
-        """Provide a fake design_research_agents module."""
+        """Provide a fake package-owned agent integration module."""
+        if name == "design_research_agents.integration":
+            module = types.SimpleNamespace()
+
+            def execute_agent_run(
+                agent_ref: str,
+                *,
+                prompt: object,
+                request_id: str | None,
+                dependencies: dict[str, object],
+                agent_bindings: dict[str, object] | None = None,
+            ) -> Any:
+                del agent_bindings
+                assert agent_ref == "agent-from-integration"
+                assert prompt == problem_packet.brief
+                assert request_id == run_spec.run_id
+                assert dependencies["problem_packet"] is problem_packet
+                return types.SimpleNamespace(
+                    output={"text": f"{problem_packet.problem_id}:{run_spec.run_id}"},
+                    metrics={"primary_outcome": 1.0},
+                    events=[
+                        {
+                            "event_type": "assistant_output",
+                            "text": "integrated output",
+                            "actor_id": "agent",
+                        }
+                    ],
+                    trace_refs=["trace.jsonl"],
+                    metadata={"request_id": request_id or ""},
+                )
+
+            module.execute_agent_run = execute_agent_run
+            return module
         if name == "design_research_agents":
-            return types.SimpleNamespace(agent_from_module=_CallableAgent())
+            return types.SimpleNamespace()
         return importlib.import_module(name)
 
     monkeypatch.setattr(agent_adapter.importlib, "import_module", fake_import)
-    resolved = agent_adapter.resolve_agent("agent_from_module", condition=condition)
-    assert isinstance(resolved, _CallableAgent)
-
-    with pytest.raises(ValueError):
-        agent_adapter.resolve_agent("unknown-agent", condition=condition)
+    integrated_execution = agent_adapter.execute_agent(
+        agent_spec_ref="agent-from-integration",
+        run_spec=run_spec,
+        condition=condition,
+        problem_packet=problem_packet,
+    )
+    assert integrated_execution.output["text"] == "p1:run-1"
+    assert integrated_execution.metrics["primary_outcome"] == 1.0
+    assert integrated_execution.trace_refs == ["trace.jsonl"]
 
     with pytest.raises(ValueError):
         agent_adapter.execute_agent(
@@ -397,31 +431,21 @@ def test_agent_adapter_fallbacks_and_normalization(monkeypatch: pytest.MonkeyPat
     problem_packet = problem_adapter.ProblemPacket("p2", "fam", "brief text")
 
     def import_failure(name: str) -> Any:
-        """Simulate a missing upstream agent package."""
+        """Simulate an outdated sibling package missing the owner-owned seam."""
+        if name == "design_research_agents.integration":
+            raise ImportError("missing integration")
         if name == "design_research_agents":
-            raise ImportError("missing package")
+            return types.SimpleNamespace()
         return importlib.import_module(name)
 
     monkeypatch.setattr(agent_adapter.importlib, "import_module", import_failure)
-    with pytest.raises(ValueError):
-        agent_adapter.resolve_agent("missing-agent", condition=condition)
-
-    def import_constructor_fallback(name: str) -> Any:
-        """Provide an upstream constructor that cannot be zero-arg initialized."""
-        if name == "design_research_agents":
-            module = types.SimpleNamespace()
-
-            def needs_problem_context(required_context: str) -> _CallableAgent:
-                del required_context
-                return _CallableAgent()
-
-            module.needs_problem_context = needs_problem_context
-            return module
-        return importlib.import_module(name)
-
-    monkeypatch.setattr(agent_adapter.importlib, "import_module", import_constructor_fallback)
-    resolved = agent_adapter.resolve_agent("needs_problem_context", condition=condition)
-    assert callable(resolved)
+    with pytest.raises(ValueError, match="does not expose the package-owned `integration` module"):
+        agent_adapter.execute_agent(
+            agent_spec_ref="missing-agent",
+            run_spec=run_spec,
+            condition=condition,
+            problem_packet=problem_packet,
+        )
 
     def problem_and_brief_agent(*, problem: Any, brief: str) -> dict[str, Any]:
         """Use fallback keyword mapping for problem packet and brief text."""
@@ -799,14 +823,10 @@ def test_real_stack_interoperability_contracts(tmp_path: Path) -> None:
         "design_research_analysis",
         repo_name="design-research-analysis",
     )
-    analysis_integration = _import_sibling_module(
-        "design_research_analysis.integration",
-        repo_name="design-research-analysis",
-    )
 
     problem_id = "gmpb_default_dynamic_min"
     resolved_problem = problems_module.get_problem(problem_id)
-    resolved_packet = problem_adapter.resolve_problem(resolved_problem)
+    resolved_packet = problem_adapter.resolve_problem(problem_id)
     assert resolved_packet.problem_id == problem_id
     assert resolved_packet.family == resolved_problem.metadata.kind.value
     assert resolved_problem.metadata.title in resolved_packet.brief
@@ -841,14 +861,11 @@ def test_real_stack_interoperability_contracts(tmp_path: Path) -> None:
         output_dir=tmp_path / "real-stack-analysis",
         validate_with_analysis_package=True,
     )
-    report = analysis_integration.validate_experiment_events(exported["events.csv"])
-    loaded = analysis_integration.load_experiment_artifacts(exported["events.csv"])
-    metric_rows = analysis_module.build_condition_metric_table(
-        csv_io.read_csv(loaded["runs.csv"]),
+    report = analysis_module.validate_experiment_events(exported["events.csv"])
+    metric_rows = analysis_module.build_condition_metric_table_from_artifacts(
+        exported["events.csv"],
         metric="primary_outcome",
         condition_column="agent_id",
-        conditions=csv_io.read_csv(loaded["conditions.csv"]),
-        evaluations=csv_io.read_csv(loaded["evaluations.csv"]),
     )
     assert report.is_valid
     assert metric_rows
@@ -909,13 +926,26 @@ def test_recipes_bundles_and_reporting(tmp_path: Path) -> None:
     brief = render_significance_brief(
         [{"test": "ttest", "outcome": "primary_outcome", "p_value": 0.04, "effect_size": 0.5}]
     )
+    object_brief = render_significance_brief(
+        types.SimpleNamespace(
+            to_significance_rows=lambda: [
+                {
+                    "test": "mannwhitney",
+                    "outcome": "secondary_outcome",
+                    "p_value": 0.03,
+                    "effect_size": 0.2,
+                }
+            ]
+        )
+    )
     empty_brief = render_significance_brief([])
 
-    report_text = "\n\n".join((summary, methods, codebook, brief, empty_brief))
+    report_text = "\n\n".join((summary, methods, codebook, brief, object_brief, empty_brief))
     report_path = write_markdown_report(study.output_dir, "summary.md", report_text)
 
     assert "# Study Summary" in summary
     assert "## Methods" in methods
     assert "## Codebook" in codebook
+    assert "mannwhitney on `secondary_outcome`" in object_brief
     assert "No analysis rows provided" in empty_brief
     assert report_path.exists()

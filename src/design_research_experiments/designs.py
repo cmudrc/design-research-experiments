@@ -9,6 +9,7 @@ from collections import Counter
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from enum import StrEnum
+from importlib import import_module
 from pathlib import Path
 from typing import Any, TypeGuard
 
@@ -43,6 +44,12 @@ _KIND_ALIASES: dict[str, DesignKind] = {
     "frac2": DesignKind.FRACTIONAL_FACTORIAL_2LEVEL,
     "fractional_factorial_2level": DesignKind.FRACTIONAL_FACTORIAL_2LEVEL,
 }
+_LHS_BACKENDS = {"stdlib", "scipy", "qmc"}
+_FRACTIONAL_BACKENDS = {"stdlib", "pydoe3", "pydoe"}
+_DOE_IMPORT_ERROR = (
+    "This DOE backend requires optional dependencies. "
+    "Install with `pip install design-research-experiments[doe]`."
+)
 
 
 @dataclass(slots=True)
@@ -121,6 +128,7 @@ def build_design(
             n_samples=n_samples,
             factors=bounds,
             seed=study.seed_policy.base_seed,
+            backend=str(resolved_spec.options.get("backend", "stdlib")),
         )
         rows = _repeat_rows(rows, replicates=resolved_spec.replicates)
         rows = append_center_points(rows, center_points=resolved_spec.center_points)
@@ -145,6 +153,7 @@ def build_design(
         coded = fractional_factorial_2level(
             [factor.name for factor in study.factors],
             resolution=resolution,
+            backend=str(resolved_spec.options.get("backend", "stdlib")),
         )
         rows = _decode_fractional_rows(study=study, coded_rows=coded)
         rows = _repeat_rows(rows, replicates=resolved_spec.replicates)
@@ -214,12 +223,18 @@ def latin_hypercube(
     factors: Mapping[str, tuple[float, float]],
     *,
     seed: int = 0,
+    backend: str = "stdlib",
 ) -> list[dict[str, float]]:
     """Generate deterministic Latin-hypercube samples for bounded numeric factors."""
     if n_samples <= 0:
         raise ValidationError("n_samples must be positive.")
     if not factors:
         return []
+    backend_key = backend.strip().lower()
+    if backend_key not in _LHS_BACKENDS:
+        raise ValidationError("latin_hypercube backend must be one of: stdlib, scipy, qmc")
+    if backend_key in {"scipy", "qmc"}:
+        return _latin_hypercube_scipy(n_samples=n_samples, factors=factors, seed=seed)
 
     rng = random.Random(seed)
     columns: dict[str, list[float]] = {}
@@ -243,6 +258,33 @@ def latin_hypercube(
     factor_names = list(columns)
     for row_index in range(n_samples):
         rows.append({name: columns[name][row_index] for name in factor_names})
+    return rows
+
+
+def _latin_hypercube_scipy(
+    *,
+    n_samples: int,
+    factors: Mapping[str, tuple[float, float]],
+    seed: int,
+) -> list[dict[str, float]]:
+    """Generate LHS samples with SciPy's QMC implementation."""
+    qmc = _import_scipy_qmc()
+
+    factor_names = list(factors)
+    lows: list[float] = []
+    highs: list[float] = []
+    for name in factor_names:
+        low, high = factors[name]
+        if not high > low:
+            raise ValidationError(f"Factor '{name}' bounds must satisfy high > low.")
+        lows.append(float(low))
+        highs.append(float(high))
+
+    sampler = qmc.LatinHypercube(d=len(factor_names), seed=seed)
+    samples = qmc.scale(sampler.random(n=n_samples), lows, highs)
+    rows: list[dict[str, float]] = []
+    for row in samples:
+        rows.append({name: float(value) for name, value in zip(factor_names, row, strict=True)})
     return rows
 
 
@@ -285,6 +327,7 @@ def fractional_factorial_2level(
     factors: Sequence[str],
     *,
     resolution: str = "III",
+    backend: str = "stdlib",
 ) -> list[dict[str, float]]:
     """Generate a two-level fractional-factorial design with coded ``{-1,+1}`` levels."""
     factor_names = list(factors)
@@ -292,6 +335,13 @@ def fractional_factorial_2level(
         raise ValidationError("Only resolution 'III' is currently supported.")
     if len(factor_names) < 2:
         raise ValidationError("At least two factors are required for a factorial design.")
+    backend_key = backend.strip().lower()
+    if backend_key not in _FRACTIONAL_BACKENDS:
+        raise ValidationError(
+            "fractional_factorial_2level backend must be one of: stdlib, pydoe3, pydoe"
+        )
+    if backend_key in {"pydoe", "pydoe3"}:
+        return _fractional_factorial_pydoe3(factor_names, resolution=resolution)
 
     if len(factor_names) <= 3:
         coded = list(itertools.product((-1.0, 1.0), repeat=len(factor_names)))
@@ -315,6 +365,44 @@ def fractional_factorial_2level(
         rows.append(dict(zip(factor_names, values[: len(factor_names)], strict=True)))
 
     return rows
+
+
+def _fractional_factorial_pydoe3(
+    factor_names: Sequence[str],
+    *,
+    resolution: str,
+) -> list[dict[str, float]]:
+    """Generate coded two-level designs with pyDOE3's fractional-factorial engine."""
+    del resolution
+    if len(factor_names) > 6:
+        raise ValidationError(
+            "Resolution-III fractional templates currently support between 2 and 6 factors."
+        )
+    fracfact = _import_pydoe3_fracfact()
+
+    generator = " ".join(("a", "b", "c", "abc", "ac", "bc")[: len(factor_names)])
+    matrix = fracfact(generator)
+    rows: list[dict[str, float]] = []
+    for row in matrix:
+        rows.append({name: float(value) for name, value in zip(factor_names, row, strict=True)})
+    return rows
+
+
+def _import_scipy_qmc() -> Any:
+    """Import SciPy QMC lazily for optional DOE backends."""
+    try:
+        return import_module("scipy.stats.qmc")
+    except ImportError as exc:
+        raise ValidationError(_DOE_IMPORT_ERROR) from exc
+
+
+def _import_pydoe3_fracfact() -> Any:
+    """Import pyDOE3's fractional-factorial generator lazily."""
+    try:
+        module = import_module("pyDOE3")
+    except ImportError as exc:
+        raise ValidationError(_DOE_IMPORT_ERROR) from exc
+    return module.fracfact
 
 
 def design_balance_report(rows: Sequence[Mapping[str, Any]]) -> dict[str, dict[str, float]]:
@@ -378,6 +466,7 @@ def generate_doe(
     replicates: int = 1,
     randomize: bool = True,
     block_randomization_key: str | None = None,
+    backend: str = "stdlib",
 ) -> dict[str, Any]:
     """Generate and summarize a DOE table for migration from drcutils-style workflows."""
     if replicates <= 0:
@@ -400,9 +489,9 @@ def generate_doe(
         if n_samples is None:
             raise ValidationError("n_samples is required for latin-hypercube DOE generation.")
         bounds = _coerce_lhs_factor_bounds(factors)
-        rows = latin_hypercube(n_samples=n_samples, factors=bounds, seed=seed)
+        rows = latin_hypercube(n_samples=n_samples, factors=bounds, seed=seed, backend=backend)
     elif normalized_kind == DesignKind.FRACTIONAL_FACTORIAL_2LEVEL.value:
-        rows = fractional_factorial_2level(list(factors.keys()))
+        rows = fractional_factorial_2level(list(factors.keys()), backend=backend)
     else:
         raise ValidationError("kind must be one of: full, lhs, frac2")
 
@@ -425,6 +514,7 @@ def generate_doe(
         "factors": factor_columns,
         "ranges": ranges,
         "design_kind": normalized_kind,
+        "backend": backend,
         "balance": balance,
     }
 

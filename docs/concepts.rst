@@ -48,6 +48,10 @@ and manifests) are designed to feed downstream analysis and reporting without
 ad-hoc schema translation. See :doc:`artifact_contract` for the file-level
 guarantees and versioning rules.
 
+The public compatibility promise lives at the file-contract level. Internal
+checkpoint or cache details are intentionally outside that boundary unless they
+are promoted into :doc:`artifact_contract`.
+
 The "Hat" Role
 --------------
 

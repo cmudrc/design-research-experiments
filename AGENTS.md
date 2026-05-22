@@ -59,34 +59,36 @@ merging.
 ## Release Naming
 
 - Theme: frontiers of exploration.
-- Monthly release names are shared across milestone titles, release PR titles,
-  and release branches.
-  - Milestone title / PR title: `{base name} - {Month YYYY}`
+- Monthly work-cycle names are shared across milestone titles, release PR
+  titles, and release branches.
+- Name the cycle for the month the work is done, not the later drop month.
+  - Milestone title / PR title: `{base name} - {Work month YYYY}`
   - Release branch: slugified full title, for example
-    `mariner-matrix-may-2026`
+    `mariner-matrix-april-2026`
+- Milestone due dates should land in the first week of the following month.
 - Milestone descriptions must use:
-  - `Tracks {previous month YYYY} work.`
+  - `Work month: {Month YYYY}.`
   - `Theme source: <url>`
 - Release PR bodies must repeat the same `Theme source:` link used on the
-  milestone.
-- Never reuse an exact base name or the same primary subject across any month
-  or any of the four design-research module repos unless all four `AGENTS.md`
-  files are intentionally updated together.
+  milestone and refer to the same work month named in the title.
+- Never reuse an exact base name or the same primary subject across any work
+  month or any of the four design-research module repos unless all four
+  `AGENTS.md` files are intentionally updated together.
 - Before adding a new release name, check the `Release Naming` tables in all
   four repos to avoid repeats.
 
-| Due date | Base name | Source subject |
-| --- | --- | --- |
-| April 1, 2026 | Apollo Ascent | Apollo program |
-| May 1, 2026 | Mariner Matrix | Mariner program |
-| June 1, 2026 | Juno Journey | Juno spacecraft |
-| July 1, 2026 | Voyager Venture | Voyager program |
-| August 1, 2026 | Artemis Advance | Artemis program |
-| September 1, 2026 | Sputnik Sprint | Sputnik 1 |
-| October 1, 2026 | Odyssey Orbit | 2001 Mars Odyssey |
-| November 1, 2026 | New Horizons Nexus | New Horizons |
-| December 1, 2026 | Dragon Drift | Crew Dragon |
-| January 1, 2027 | Endeavour Expedition | Space Shuttle Endeavour |
+| Work month | Target drop | Base name | Source subject |
+| --- | --- | --- | --- |
+| March 2026 | April 1, 2026 | Apollo Ascent | Apollo program |
+| April 2026 | May 1, 2026 | Mariner Matrix | Mariner program |
+| May 2026 | June 1, 2026 | Juno Journey | Juno spacecraft |
+| June 2026 | July 1, 2026 | Voyager Venture | Voyager program |
+| July 2026 | August 1, 2026 | Artemis Advance | Artemis program |
+| August 2026 | September 1, 2026 | Sputnik Sprint | Sputnik 1 |
+| September 2026 | October 1, 2026 | Odyssey Orbit | 2001 Mars Odyssey |
+| October 2026 | November 1, 2026 | New Horizons Nexus | New Horizons |
+| November 2026 | December 1, 2026 | Dragon Drift | Crew Dragon |
+| December 2026 | January 1, 2027 | Endeavour Expedition | Space Shuttle Endeavour |
 
 ## Keep This File Up To Date
 

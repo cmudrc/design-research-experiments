@@ -87,6 +87,11 @@ def _build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Optional column for within-block randomization.",
     )
+    doe_parser.add_argument(
+        "--backend",
+        default="stdlib",
+        help="DOE backend to use when supported (stdlib, scipy/qmc for lhs, pydoe3 for frac2).",
+    )
     doe_parser.add_argument("--out", required=True, type=Path, help="Output CSV path.")
     randomize_group = doe_parser.add_mutually_exclusive_group()
     randomize_group.add_argument(
@@ -216,6 +221,7 @@ def _handle_generate_doe(args: argparse.Namespace) -> int:
         replicates=int(args.replicates),
         randomize=bool(args.randomize),
         block_randomization_key=args.block_randomization_key,
+        backend=str(args.backend),
     )
     rows = result["design"]
     csv_io.write_csv(args.out, rows)

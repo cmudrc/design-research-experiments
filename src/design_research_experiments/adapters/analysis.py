@@ -57,8 +57,7 @@ def _run_optional_analysis_validation(events_csv_path: Path) -> None:
     if not callable(validator):
         raise ValidationError(
             "design-research-analysis is installed but does not expose "
-            "`integration.validate_experiment_events(...)`. Upgrade to the April "
-            "compatibility branch."
+            "`validate_experiment_events(...)`. Upgrade to the current artifact API."
         )
 
     report = validator(events_csv_path)
@@ -74,7 +73,20 @@ def _run_optional_analysis_validation(events_csv_path: Path) -> None:
 
 
 def _load_analysis_validation_module() -> Any | None:
-    """Return the analysis integration module when the April API is available."""
+    """Return the analysis package module when artifact validation is available."""
+    try:
+        module = importlib.import_module("design_research_analysis")
+    except ImportError as exc:
+        try:
+            return importlib.import_module("design_research_analysis.integration")
+        except ImportError:
+            if exc.name == "design_research_analysis":
+                return None
+            raise
+
+    if callable(getattr(module, "validate_experiment_events", None)):
+        return module
+
     try:
         return importlib.import_module("design_research_analysis.integration")
     except ImportError as exc:
@@ -84,8 +96,7 @@ def _load_analysis_validation_module() -> Any | None:
             return None
         raise ValidationError(
             "design-research-analysis is installed but does not expose the "
-            "artifact-first `integration` module. Upgrade to the April compatibility "
-            "branch."
+            "artifact-first validation API. Upgrade to the current artifact API."
         ) from exc
 
 

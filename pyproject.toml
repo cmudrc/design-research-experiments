@@ -43,6 +43,10 @@ dev = [
   "types-PyYAML>=6.0,<7",
   "types-tqdm>=4.66,<5",
 ]
+doe = [
+  "pyDOE3>=1.0,<2",
+  "scipy>=1.11,<2",
+]
 
 [project.urls]
 Homepage = "https://cmudrc.github.io/design-research-experiments/"

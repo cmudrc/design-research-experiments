@@ -46,6 +46,8 @@ intentionally no separate `design_research_experiments.integration` module.
 
 Requires Python 3.12+.
 Maintainer workflows target Python `3.12` (`.python-version`).
+For a VS Code-oriented contributor setup, see
+[VS Code Start](docs/vscode_start.rst).
 
 ```bash
 python -m venv .venv

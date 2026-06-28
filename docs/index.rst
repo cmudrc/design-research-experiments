@@ -142,6 +142,7 @@ Start Here
 - :doc:`examples/index`
 - :doc:`api`
 - :doc:`artifact_contract`
+- :doc:`vscode_start`
 - :doc:`automation_baseline`
 - `CONTRIBUTING.md <https://github.com/cmudrc/design-research-experiments/blob/HEAD/CONTRIBUTING.md>`_
 
@@ -174,6 +175,7 @@ Start Here
    cli_reference
    reference/index
    dependencies_and_extras
+   vscode_start
    automation_baseline
 
 .. toctree::

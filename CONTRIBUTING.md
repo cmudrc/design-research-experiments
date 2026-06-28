@@ -2,6 +2,10 @@
 
 ## Development Setup
 
+For a step-by-step VS Code setup, including interpreter selection, optional
+`uv` usage, first checks, and troubleshooting, see
+[VS Code Start](docs/vscode_start.rst).
+
 ```bash
 python -m venv .venv
 source .venv/bin/activate

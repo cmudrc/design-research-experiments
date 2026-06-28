@@ -809,6 +809,92 @@ def test_analysis_adapter_raises_when_validation_report_fails(
         )
 
 
+def test_analysis_adapter_optional_validation_absent_package_is_noop(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Optional analysis validation should skip cleanly when the sibling package is absent."""
+    study = make_study(tmp_path=tmp_path, study_id="analysis-absent")
+    conditions = build_design(study)
+
+    def fake_import(name: str) -> Any:
+        if name.startswith("design_research_analysis"):
+            raise ImportError("missing optional analysis package", name="design_research_analysis")
+        return importlib.import_module(name)
+
+    monkeypatch.setattr(analysis_adapter.importlib, "import_module", fake_import)
+
+    paths = analysis_adapter.export_analysis_tables(
+        study,
+        conditions=conditions,
+        run_results=[],
+        output_dir=tmp_path / "analysis-absent-out",
+        validate_with_analysis_package=True,
+    )
+
+    assert paths["events.csv"].exists()
+
+
+def test_analysis_adapter_rejects_outdated_installed_analysis_package(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An installed analysis package without the artifact API should fail loudly."""
+    study = make_study(tmp_path=tmp_path, study_id="analysis-outdated")
+    conditions = build_design(study)
+
+    def fake_import(name: str) -> Any:
+        if name == "design_research_analysis":
+            return types.SimpleNamespace()
+        if name == "design_research_analysis.integration":
+            raise ImportError(
+                "integration module missing",
+                name="design_research_analysis.integration",
+            )
+        return importlib.import_module(name)
+
+    monkeypatch.setattr(analysis_adapter.importlib, "import_module", fake_import)
+
+    with pytest.raises(ValueError, match="artifact-first validation API"):
+        analysis_adapter.export_analysis_tables(
+            study,
+            conditions=conditions,
+            run_results=[],
+            output_dir=tmp_path / "analysis-outdated-out",
+            validate_with_analysis_package=True,
+        )
+
+
+def test_analysis_adapter_rejects_module_without_validator(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A loaded validation module must expose a callable validator."""
+    monkeypatch.setattr(
+        analysis_adapter,
+        "_load_analysis_validation_module",
+        lambda: types.SimpleNamespace(validate_experiment_events="not-callable"),
+    )
+
+    with pytest.raises(ValueError, match="does not expose"):
+        analysis_adapter._run_optional_analysis_validation(Path("events.csv"))
+
+
+def test_analysis_adapter_uses_generic_message_for_non_sequence_errors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Validation reports with non-sequence errors should keep the fallback message."""
+
+    def validate_experiment_events(_path: Path) -> Any:
+        return types.SimpleNamespace(is_valid=False, errors=object())
+
+    monkeypatch.setattr(
+        analysis_adapter,
+        "_load_analysis_validation_module",
+        lambda: types.SimpleNamespace(validate_experiment_events=validate_experiment_events),
+    )
+
+    with pytest.raises(ValueError, match="Unified table validation failed"):
+        analysis_adapter._run_optional_analysis_validation(Path("events.csv"))
+
+
 def test_real_stack_interoperability_contracts(tmp_path: Path) -> None:
     """When sibling repos are available, the real stack should compose end to end."""
     problems_module = _import_sibling_module(

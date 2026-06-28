@@ -10,6 +10,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from design_research_experiments import designs as designs_module
 from design_research_experiments.conditions import (
     Constraint,
     ConstraintSeverity,
@@ -80,6 +81,12 @@ def test_condition_expression_engine_and_validation(tmp_path: Path) -> None:
 
     with pytest.raises(ValidationError):
         DesignSpec(replicates=0)
+
+    with pytest.raises(ValidationError):
+        DesignSpec(n_samples=0)
+
+    with pytest.raises(ValidationError):
+        DesignSpec(center_points=-1)
 
     with pytest.raises(ValidationError):
         Block(name="", levels=("x",))
@@ -342,11 +349,58 @@ def test_design_helper_functions_cover_error_and_summary_paths(tmp_path: Path) -
     with pytest.raises(ValidationError, match="Latin-hypercube factor definitions"):
         generate_doe(kind="lhs", factors={"x": ["low", "high"]}, n_samples=2)
 
+    label_only = generate_doe(kind="full", factors={"variant": ["a", "b"]}, randomize=False)
+    assert label_only["summary"]["ranges"] == {}
+
+    lhs = generate_doe(
+        kind="lhs",
+        factors={"x": [0.0, 1.0], "y": [10.0, 20.0]},
+        n_samples=2,
+        center_points=1,
+        replicates=2,
+        randomize=True,
+        seed=8,
+    )
+    assert lhs["summary"]["n_runs"] == 5
+
+    frac = generate_doe(kind="frac2", factors={"a": [-1, 1], "b": [-1, 1]}, randomize=False)
+    assert frac["summary"]["design_kind"] == DesignKind.FRACTIONAL_FACTORIAL_2LEVEL.value
+
+    with pytest.raises(ValidationError, match="Block column"):
+        randomize_runs([{"block": "a"}, {"run": 2}], block="block")
+    blocked = randomize_runs(
+        [{"block": "a", "run": 1}, {"block": "a", "run": 2}, {"block": "b", "run": 3}],
+        block="block",
+        seed=3,
+    )
+    assert [row["block"] for row in blocked] == ["a", "a", "b"]
+
     bad_json = tmp_path / "matrix-object.json"
     bad_json.write_text(json.dumps({"variant": "a"}), encoding="utf-8")
     study = make_study(tmp_path=tmp_path, study_id="bad-json-study")
     with pytest.raises(ValidationError, match="list of row objects"):
         build_design(study, {"kind": "custom_matrix", "matrix_path": str(bad_json)})
+
+    constrained = make_study(
+        tmp_path=tmp_path,
+        study_id="constraint-matrix-study",
+        constraints=(
+            Constraint(
+                constraint_id="must-be-b",
+                description="variant must be b",
+                expression="variant == 'b'",
+                severity=ConstraintSeverity.ERROR,
+            ),
+        ),
+    )
+    constrained_matrix = tmp_path / "constraint-matrix.json"
+    constrained_matrix.write_text(json.dumps([{"variant": "a"}]), encoding="utf-8")
+    constrained_conditions = build_design(
+        constrained,
+        {"kind": "custom_matrix", "matrix_path": str(constrained_matrix)},
+    )
+    assert constrained_conditions[0].admissible is False
+    assert constrained_conditions[0].constraint_messages == ["must-be-b: variant must be b"]
 
 
 def test_build_design_covers_lhs_bounds_and_fractional_validation_paths(tmp_path: Path) -> None:
@@ -387,6 +441,9 @@ def test_build_design_covers_lhs_bounds_and_fractional_validation_paths(tmp_path
             {"kind": "lhs", "options": {"n_samples": 1, "bounds": [0.0, 1.0]}},
         )
 
+    with pytest.raises(ValidationError, match=r"require DesignSpec\.n_samples"):
+        build_design(lhs_study, {"kind": "lhs"})
+
     non_numeric_lhs = make_study(
         tmp_path=tmp_path,
         study_id="lhs-nonnumeric-study",
@@ -415,3 +472,141 @@ def test_build_design_covers_lhs_bounds_and_fractional_validation_paths(tmp_path
     )
     with pytest.raises(ValidationError, match="exactly two levels per factor"):
         build_design(invalid_fractional, {"kind": "frac2"})
+
+    fractional_study = make_study(
+        tmp_path=tmp_path,
+        study_id="frac-design-study",
+        factors=(
+            Factor(
+                name="a",
+                description="A",
+                levels=(Level(name="low", value="low"), Level(name="high", value="high")),
+            ),
+            Factor(
+                name="b",
+                description="B",
+                levels=(Level(name="off", value=False), Level(name="on", value=True)),
+            ),
+        ),
+    )
+    fractional_conditions = build_design(
+        fractional_study,
+        {
+            "kind": "frac2",
+            "randomize": True,
+            "counterbalance": True,
+            "center_points": 1,
+            "block_randomization_key": "a",
+        },
+    )
+    assert len(fractional_conditions) == 5
+    assert {condition.metadata["design_kind"] for condition in fractional_conditions} == {
+        DesignKind.FRACTIONAL_FACTORIAL_2LEVEL.value
+    }
+
+    latin_mismatch = make_study(
+        tmp_path=tmp_path,
+        study_id="latin-mismatch-study",
+        factors=(
+            Factor(
+                name="row",
+                description="row",
+                levels=(Level("r1", "r1"), Level("r2", "r2")),
+            ),
+            Factor(
+                name="col",
+                description="col",
+                levels=(Level("c1", "c1"), Level("c2", "c2")),
+            ),
+            Factor(
+                name="treat",
+                description="treat",
+                levels=(Level("t1", "t1"),),
+            ),
+        ),
+    )
+    with pytest.raises(ValidationError, match="equal cardinality"):
+        build_design(
+            latin_mismatch,
+            {
+                "kind": "latin_square",
+                "options": {
+                    "row_factor": "row",
+                    "column_factor": "col",
+                    "treatment_factor": "treat",
+                },
+            },
+        )
+
+    with pytest.raises(ValidationError, match="Unsupported design kind"):
+        coerce_design_spec({"kind": "definitely-not-supported"})
+
+
+def test_optional_doe_backend_paths(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Optional DOE backends should normalize success and missing-dependency failures."""
+
+    class FakeLatinHypercube:
+        def __init__(self, *, d: int, seed: int) -> None:
+            self.d = d
+            self.seed = seed
+
+        def random(self, *, n: int) -> list[list[float]]:
+            assert self.d == 2
+            assert self.seed == 11
+            return [[0.25, 0.75] for _ in range(n)]
+
+    def fake_scale(
+        samples: list[list[float]], lows: list[float], highs: list[float]
+    ) -> list[list[float]]:
+        return [
+            [
+                low + sample * (high - low)
+                for sample, low, high in zip(row, lows, highs, strict=True)
+            ]
+            for row in samples
+        ]
+
+    fake_qmc = SimpleNamespace(LatinHypercube=FakeLatinHypercube, scale=fake_scale)
+    monkeypatch.setattr(
+        designs_module,
+        "import_module",
+        lambda name: fake_qmc if name == "scipy.stats.qmc" else SimpleNamespace(),
+    )
+
+    scipy_rows = latin_hypercube(
+        2,
+        {"x": (0.0, 1.0), "y": (10.0, 20.0)},
+        seed=11,
+        backend="scipy",
+    )
+    assert scipy_rows == [{"x": 0.25, "y": 17.5}, {"x": 0.25, "y": 17.5}]
+
+    with pytest.raises(ValidationError, match="high > low"):
+        latin_hypercube(2, {"x": (1.0, 1.0)}, backend="scipy")
+
+    fake_pydoe = SimpleNamespace(fracfact=lambda generator: [[-1.0, 1.0], [1.0, -1.0]])
+    monkeypatch.setattr(
+        designs_module,
+        "import_module",
+        lambda name: fake_pydoe if name == "pyDOE3" else SimpleNamespace(),
+    )
+    assert fractional_factorial_2level(["a", "b"], backend="pydoe3") == [
+        {"a": -1.0, "b": 1.0},
+        {"a": 1.0, "b": -1.0},
+    ]
+
+    six_factor_rows = fractional_factorial_2level(["a", "b", "c", "d", "e", "f"])
+    assert six_factor_rows[0]["e"] == six_factor_rows[0]["a"] * six_factor_rows[0]["c"]
+    assert six_factor_rows[0]["f"] == six_factor_rows[0]["b"] * six_factor_rows[0]["c"]
+
+    with pytest.raises(ValidationError, match="between 2 and 6 factors"):
+        fractional_factorial_2level(["a", "b", "c", "d", "e", "f", "g"], backend="pydoe3")
+
+    def raise_import_error(name: str) -> None:
+        raise ImportError(name)
+
+    monkeypatch.setattr(designs_module, "import_module", raise_import_error)
+    with pytest.raises(ValidationError, match="optional dependencies"):
+        latin_hypercube(2, {"x": (0.0, 1.0)}, backend="qmc")
+    with pytest.raises(ValidationError, match="optional dependencies"):
+        fractional_factorial_2level(["a", "b"], backend="pydoe")

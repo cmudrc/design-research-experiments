@@ -9,9 +9,9 @@
 
 <!-- release-callout:start -->
 > [!IMPORTANT]
-> Current monthly release: [Juno Journey - May 2026](https://github.com/cmudrc/design-research-experiments/milestone/3)  
-> Due: June 1, 2026  
-> Tracks: May 2026 work
+> Current monthly release: [Voyager Venture - June 2026](https://github.com/cmudrc/design-research-experiments/milestone/4)  
+> Due: July 1, 2026  
+> Tracks: June 2026 work
 <!-- release-callout:end -->
 
 `design-research-experiments` is the hypothesis-first study-definition and

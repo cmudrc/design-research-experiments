@@ -81,7 +81,7 @@ def execute_agent(
         if owner_integration is None:
             raise ValidationError(
                 "String agent references now require `design_research_agents.integration`. "
-                "Install the coordinated monthly release or use an explicit binding/object."
+                "Install a compatible package release or use an explicit binding/object."
             )
         return _execute_via_owner_integration(
             owner_integration=owner_integration,
@@ -145,7 +145,7 @@ def _load_agents_integration_module() -> Any | None:
             return None
         raise ValidationError(
             "design-research-agents is installed but does not expose the package-owned "
-            "`integration` module. Upgrade to the coordinated monthly release."
+            "`integration` module. Upgrade to a compatible package release."
         ) from exc
 
 

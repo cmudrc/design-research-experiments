@@ -7,13 +7,6 @@
 [![PyPI Version](https://img.shields.io/pypi/v/design-research-experiments.svg)](https://pypi.org/project/design-research-experiments/)
 [![Python Versions](https://img.shields.io/pypi/pyversions/design-research-experiments.svg)](https://pypi.org/project/design-research-experiments/)
 
-<!-- release-callout:start -->
-> [!IMPORTANT]
-> Current monthly release: [Juno Journey - May 2026](https://github.com/cmudrc/design-research-experiments/milestone/3)  
-> Due: June 1, 2026  
-> Tracks: May 2026 work
-<!-- release-callout:end -->
-
 `design-research-experiments` is the hypothesis-first study-definition and
 experiment-orchestration layer in the cmudrc design research ecosystem.
 
@@ -46,7 +39,8 @@ intentionally no separate `design_research_experiments.integration` module.
 
 Requires Python 3.12+.
 Maintainer workflows target Python `3.12` (`.python-version`).
-For a VS Code-oriented contributor setup, see
+For a VS Code path that starts from PyPI and then shows the repository example
+workflow, see
 [VS Code Start](docs/vscode_start.rst).
 
 ```bash

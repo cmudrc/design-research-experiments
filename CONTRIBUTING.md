@@ -14,11 +14,17 @@ make dev
 
 The preferred maintainer interpreter is set in `.python-version` (`3.12`).
 
-Before cutting a release, run:
+## Release Publishing
 
-```bash
-make release-check
-```
+Before cutting a release, run `make release-check`. The GitHub `Publish`
+workflow builds and validates distributions before any upload:
+
+- Publishing a GitHub Release tagged `v{package-version}` publishes to PyPI.
+- A manual workflow run is build-only by default.
+- A recovery publish requires selecting the release tag and explicitly setting
+  `publish=true`; publishing from a branch is rejected.
+- Every publishing path rejects a tag that differs from the version in
+  `pyproject.toml`.
 
 ## Local Quality Checks
 

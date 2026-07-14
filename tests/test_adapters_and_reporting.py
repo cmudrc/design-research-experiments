@@ -210,13 +210,35 @@ def test_problem_adapter_resolution_and_sampling(monkeypatch: pytest.MonkeyPatch
         }
     )
     assert packet.problem_id == "p-map"
+    assert problem_adapter.resolve_problem(packet) is packet
     assert problem_adapter.evaluate_problem(packet, {"text": "x"})[0]["metric_name"] == "score"
+    empty_result_packet = problem_adapter.ProblemPacket(
+        "p-empty",
+        "mapped",
+        "empty result",
+        evaluator=lambda _output: None,
+    )
+    assert problem_adapter.evaluate_problem(empty_result_packet, {}) == []
 
     registry_packet = problem_adapter.ProblemPacket("p-reg", "reg", "brief")
     resolved_registry = problem_adapter.resolve_problem(
         "p-reg", registry={"p-reg": registry_packet}
     )
     assert resolved_registry is registry_packet
+    assert problem_adapter.sample_problem_packets([packet, registry_packet]) == [
+        packet,
+        registry_packet,
+    ]
+    assert (
+        len(
+            problem_adapter.sample_problem_packets(
+                [packet, registry_packet],
+                sample_size=1,
+                seed=2,
+            )
+        )
+        == 1
+    )
 
     calls: list[str] = []
 
@@ -324,6 +346,22 @@ def test_problem_adapter_raises_clear_error_for_outdated_problem_package(
 
     with pytest.raises(ValueError, match="does not expose the package-owned `integration` module"):
         problem_adapter.resolve_problem("outdated-problem")
+
+
+def test_problem_adapter_rejects_missing_owner_package_and_invalid_registry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Unavailable owner packages and invalid registries should fail clearly."""
+
+    def missing_import(_name: str) -> Any:
+        raise ImportError("package unavailable")
+
+    monkeypatch.setattr(problem_adapter.importlib, "import_module", missing_import)
+
+    with pytest.raises(ValueError, match="String problem references now require"):
+        problem_adapter.resolve_problem("missing-problem")
+    with pytest.raises(ValueError, match="Problem registries now require"):
+        problem_adapter.resolve_problem("invalid", registry={"invalid": object()})
 
 
 def test_agent_adapter_execution_paths(monkeypatch: pytest.MonkeyPatch) -> None:

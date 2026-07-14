@@ -125,7 +125,7 @@ def main() -> None:
     )
     API_BADGE.write_text(
         _render_badge(
-            "Example API Coverage",
+            "API in Examples",
             f"{covered_exports}/{total_exports}",
             _pick_color(api_coverage_percent),
         ),

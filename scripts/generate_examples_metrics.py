@@ -36,7 +36,7 @@ def _extract_exports(path: Path) -> tuple[str, ...]:
         path: Package ``__init__.py`` path.
 
     Returns:
-        Tuple of exported symbol names excluding ``__version__``.
+        Tuple of exported symbol names.
 
     Raises:
         ValueError: If the module does not define a static ``__all__`` list or tuple.
@@ -52,11 +52,7 @@ def _extract_exports(path: Path) -> tuple[str, ...]:
 
         exports: list[str] = []
         for element in node.value.elts:
-            if (
-                isinstance(element, ast.Constant)
-                and isinstance(element.value, str)
-                and element.value != "__version__"
-            ):
+            if isinstance(element, ast.Constant) and isinstance(element.value, str):
                 exports.append(element.value)
         return tuple(exports)
 

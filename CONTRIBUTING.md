@@ -35,10 +35,11 @@ make docs-check
 make docs
 ```
 
-This repo maintains a hard 90% total line-coverage floor in CI. Run
-`make coverage` before merge when touching tested behavior. This repo-level
-baseline tracks the family-wide policy in
-[cmudrc/design-research#4](https://github.com/cmudrc/design-research/issues/4).
+## Quality Gates
+
+- `make coverage` enforces at least 95% total line coverage for the default deterministic suite.
+- `make examples-test` executes the checked-in runnable examples.
+- `make examples-coverage` requires every curated top-level `__all__` export to appear in at least one runnable example.
 
 Optional but useful:
 

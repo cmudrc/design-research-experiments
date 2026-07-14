@@ -66,8 +66,17 @@ def build_demo_study(output_dir: Path) -> drex.Study:
 
 def main() -> None:
     """Validate and materialize the demo study."""
+    print(f"design-research-experiments {drex.__version__}")
     output_dir = Path("artifacts") / "demo-study"
     study = build_demo_study(output_dir)
+    packet = drex.resolve_problem(
+        {
+            "problem_id": "problem-1",
+            "family": "walkthrough",
+            "brief": "A locally defined problem packet for the walkthrough.",
+        }
+    )
+    print(f"Resolved problem packet: {packet.problem_id}")
 
     errors = drex.validate_study(study)
     if errors:

@@ -70,7 +70,7 @@ def _usage_from_notebook(path: Path, exports: set[str]) -> set[str]:
 def main() -> int:
     """Compute example API-usage coverage and enforce a threshold."""
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--minimum", type=float, default=90.0)
+    parser.add_argument("--minimum", type=float, default=100.0)
     args = parser.parse_args()
 
     exports = _extract_exports(PUBLIC_API_INIT)
@@ -92,7 +92,7 @@ def main() -> int:
     coverage_percent = (len(covered) / len(exports)) * 100.0 if exports else 100.0
     missing = sorted(export_set - covered)
 
-    print(f"Example API coverage: {coverage_percent:.1f}% ({len(covered)}/{len(exports)})")
+    print(f"API in examples: {coverage_percent:.1f}% ({len(covered)}/{len(exports)})")
     if missing:
         print("Missing exports in examples:")
         for symbol in missing:
@@ -102,7 +102,7 @@ def main() -> int:
         print(f"Coverage threshold failed: {coverage_percent:.1f}% < {args.minimum:.1f}%")
         return 1
 
-    print("Example API coverage threshold passed.")
+    print("API-in-examples threshold passed.")
     return 0
 
 

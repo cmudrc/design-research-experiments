@@ -208,3 +208,45 @@ def test_validate_canonical_artifacts_fails_loudly_on_contract_drift(tmp_path: P
 
     with pytest.raises(ValueError, match=r"events\.csv is missing required columns"):
         validate_canonical_artifacts(tmp_path)
+
+
+@pytest.mark.parametrize(
+    ("drift", "expected_message"),
+    [
+        ("missing-file", r"Missing canonical artifacts: evaluations\.csv"),
+        ("missing-key", r"manifest\.json is missing required keys: generated_at"),
+        ("schema-version", r"manifest\.json schema_version 'invalid' does not match"),
+        ("study-id", r"study\.yaml and manifest\.json disagree on study_id"),
+    ],
+)
+def test_validate_canonical_artifacts_reports_structural_drift(
+    tmp_path: Path,
+    drift: str,
+    expected_message: str,
+) -> None:
+    """Every structural contract failure should identify the offending artifact."""
+    output_dir = tmp_path / drift
+    study = build_strategy_comparison_study()
+    study.output_dir = output_dir
+    export_canonical_artifacts(
+        study=study,
+        conditions=build_design(study),
+        run_results=[],
+        output_dir=output_dir,
+    )
+
+    manifest_path = output_dir / "manifest.json"
+    if drift == "missing-file":
+        (output_dir / "evaluations.csv").unlink()
+    else:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        if drift == "missing-key":
+            manifest.pop("generated_at")
+        elif drift == "schema-version":
+            manifest["schema_version"] = "invalid"
+        else:
+            manifest["study_id"] = "different-study"
+        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    with pytest.raises(ValueError, match=expected_message):
+        validate_canonical_artifacts(output_dir)

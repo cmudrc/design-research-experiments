@@ -185,7 +185,10 @@ class _FakeStream:
 
 def test_io_modules_yaml_json_csv_sqlite(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """IO helpers should read/write canonical file formats and error when YAML missing."""
-    rows = [{"a": 1, "b": "x"}, {"a": 2, "b": "y"}]
+    rows = [
+        {"a": 1, "b": "x", "metadata": {"source": "first"}},
+        {"a": 2, "b": "y", "metadata": {"source": "second"}},
+    ]
     csv_path = tmp_path / "table.csv"
     csv_io.write_csv(csv_path, rows)
     read_rows = csv_io.read_csv(csv_path)
@@ -202,8 +205,11 @@ def test_io_modules_yaml_json_csv_sqlite(tmp_path: Path, monkeypatch: pytest.Mon
     sqlite_path = tmp_path / "tables.sqlite"
     sqlite_io.mirror_tables_to_sqlite(sqlite_path, tables={"rows": rows, "empty": []})
     with sqlite3.connect(sqlite_path) as connection:
-        result = list(connection.execute("SELECT a, b FROM rows ORDER BY a"))
-    assert result == [("1", "x"), ("2", "y")]
+        result = list(connection.execute("SELECT a, b, metadata FROM rows ORDER BY a"))
+    assert result == [
+        ("1", "x", '{"source": "first"}'),
+        ("2", "y", '{"source": "second"}'),
+    ]
 
     monkeypatch.setattr(yaml_io, "yaml", None)
     with pytest.raises(RuntimeError):

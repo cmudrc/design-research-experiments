@@ -48,10 +48,13 @@ def export_analysis_tables(
 
 
 def _run_optional_analysis_validation(events_csv_path: Path) -> None:
-    """Optionally run validation hooks from design-research-analysis when available."""
+    """Run validation hooks from design-research-analysis when requested."""
     module = _load_analysis_validation_module()
     if module is None:
-        return
+        raise ValidationError(
+            "`validate_with_analysis_package=True` requires design-research-analysis. "
+            "Install it with `pip install design-research-analysis`."
+        )
 
     validator = getattr(module, "validate_experiment_events", None)
     if not callable(validator):

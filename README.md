@@ -2,7 +2,7 @@
 [![CI](https://github.com/cmudrc/design-research-experiments/actions/workflows/ci.yml/badge.svg)](https://github.com/cmudrc/design-research-experiments/actions/workflows/ci.yml)
 [![Coverage](https://raw.githubusercontent.com/cmudrc/design-research-experiments/HEAD/.github/badges/coverage.svg)](https://github.com/cmudrc/design-research-experiments/actions/workflows/ci.yml)
 [![Examples Passing](https://raw.githubusercontent.com/cmudrc/design-research-experiments/HEAD/.github/badges/examples-passing.svg)](https://github.com/cmudrc/design-research-experiments/actions/workflows/examples.yml)
-[![Public API In Examples](https://raw.githubusercontent.com/cmudrc/design-research-experiments/HEAD/.github/badges/examples-api-coverage.svg)](https://github.com/cmudrc/design-research-experiments/actions/workflows/examples.yml)
+[![API in Examples](https://raw.githubusercontent.com/cmudrc/design-research-experiments/HEAD/.github/badges/examples-api-coverage.svg)](https://github.com/cmudrc/design-research-experiments/actions/workflows/examples.yml)
 [![Docs](https://github.com/cmudrc/design-research-experiments/actions/workflows/docs-pages.yml/badge.svg)](https://github.com/cmudrc/design-research-experiments/actions/workflows/docs-pages.yml)
 [![PyPI Version](https://img.shields.io/pypi/v/design-research-experiments.svg)](https://pypi.org/project/design-research-experiments/)
 [![Python Versions](https://img.shields.io/pypi/pyversions/design-research-experiments.svg)](https://pypi.org/project/design-research-experiments/)
@@ -15,6 +15,14 @@ It composes sibling libraries rather than reimplementing them:
 - `design-research-agents` for executable agent behavior, workflows, and traces
 - `design-research-problems` for problem catalogs, registries, and evaluators
 - `design-research-analysis` for downstream unified-table analysis and reporting
+
+## Quality Signals
+
+- **Coverage** reports total line coverage for the default deterministic test suite; CI requires at least 95%.
+- **Examples Passing** reports checked-in example scripts that execute successfully in the examples workflow.
+- **API in Examples** reports curated top-level `__all__` exports referenced by runnable examples. `N/N` means every supported top-level export appears in at least one example, and CI requires 100%.
+
+Run `make coverage`, `make examples-test`, and `make examples-coverage` to reproduce these checks locally.
 
 ## Overview
 
@@ -56,7 +64,7 @@ Run a basic example:
 make run-example
 ```
 
-This repo maintains a hard 90% total line-coverage floor in CI via
+This repo maintains a hard 95% total line-coverage floor in CI via
 `make coverage`. The repo-specific rule tracks the family-wide coverage policy
 in [cmudrc/design-research#4](https://github.com/cmudrc/design-research/issues/4).
 

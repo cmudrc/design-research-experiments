@@ -42,7 +42,12 @@ from design_research_experiments.reporting import (
     render_significance_brief,
     write_markdown_report,
 )
-from design_research_experiments.schemas import Observation, ObservationLevel, RunStatus
+from design_research_experiments.schemas import (
+    Observation,
+    ObservationLevel,
+    RunStatus,
+    ValidationError,
+)
 from design_research_experiments.study import RunBudget, RunResult, RunSpec, Study, validate_study
 
 from .helpers import make_study
@@ -205,13 +210,35 @@ def test_problem_adapter_resolution_and_sampling(monkeypatch: pytest.MonkeyPatch
         }
     )
     assert packet.problem_id == "p-map"
+    assert problem_adapter.resolve_problem(packet) is packet
     assert problem_adapter.evaluate_problem(packet, {"text": "x"})[0]["metric_name"] == "score"
+    empty_result_packet = problem_adapter.ProblemPacket(
+        "p-empty",
+        "mapped",
+        "empty result",
+        evaluator=lambda _output: None,
+    )
+    assert problem_adapter.evaluate_problem(empty_result_packet, {}) == []
 
     registry_packet = problem_adapter.ProblemPacket("p-reg", "reg", "brief")
     resolved_registry = problem_adapter.resolve_problem(
         "p-reg", registry={"p-reg": registry_packet}
     )
     assert resolved_registry is registry_packet
+    assert problem_adapter.sample_problem_packets([packet, registry_packet]) == [
+        packet,
+        registry_packet,
+    ]
+    assert (
+        len(
+            problem_adapter.sample_problem_packets(
+                [packet, registry_packet],
+                sample_size=1,
+                seed=2,
+            )
+        )
+        == 1
+    )
 
     calls: list[str] = []
 
@@ -319,6 +346,22 @@ def test_problem_adapter_raises_clear_error_for_outdated_problem_package(
 
     with pytest.raises(ValueError, match="does not expose the package-owned `integration` module"):
         problem_adapter.resolve_problem("outdated-problem")
+
+
+def test_problem_adapter_rejects_missing_owner_package_and_invalid_registry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Unavailable owner packages and invalid registries should fail clearly."""
+
+    def missing_import(_name: str) -> Any:
+        raise ImportError("package unavailable")
+
+    monkeypatch.setattr(problem_adapter.importlib, "import_module", missing_import)
+
+    with pytest.raises(ValueError, match="String problem references now require"):
+        problem_adapter.resolve_problem("missing-problem")
+    with pytest.raises(ValueError, match="Problem registries now require"):
+        problem_adapter.resolve_problem("invalid", registry={"invalid": object()})
 
 
 def test_agent_adapter_execution_paths(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -807,6 +850,91 @@ def test_analysis_adapter_raises_when_validation_report_fails(
             output_dir=tmp_path / "analysis-invalid-hook",
             validate_with_analysis_package=True,
         )
+
+
+def test_analysis_adapter_requires_analysis_package_for_requested_validation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Requested analysis validation should fail clearly when its dependency is absent."""
+    study = make_study(tmp_path=tmp_path, study_id="analysis-absent")
+    conditions = build_design(study)
+
+    def fake_import(name: str) -> Any:
+        if name.startswith("design_research_analysis"):
+            raise ImportError("missing optional analysis package", name="design_research_analysis")
+        return importlib.import_module(name)
+
+    monkeypatch.setattr(analysis_adapter.importlib, "import_module", fake_import)
+
+    with pytest.raises(ValidationError, match="pip install design-research-analysis"):
+        analysis_adapter.export_analysis_tables(
+            study,
+            conditions=conditions,
+            run_results=[],
+            output_dir=tmp_path / "analysis-absent-out",
+            validate_with_analysis_package=True,
+        )
+
+
+def test_analysis_adapter_rejects_outdated_installed_analysis_package(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An installed analysis package without the artifact API should fail loudly."""
+    study = make_study(tmp_path=tmp_path, study_id="analysis-outdated")
+    conditions = build_design(study)
+
+    def fake_import(name: str) -> Any:
+        if name == "design_research_analysis":
+            return types.SimpleNamespace()
+        if name == "design_research_analysis.integration":
+            raise ImportError(
+                "integration module missing",
+                name="design_research_analysis.integration",
+            )
+        return importlib.import_module(name)
+
+    monkeypatch.setattr(analysis_adapter.importlib, "import_module", fake_import)
+
+    with pytest.raises(ValueError, match="artifact-first validation API"):
+        analysis_adapter.export_analysis_tables(
+            study,
+            conditions=conditions,
+            run_results=[],
+            output_dir=tmp_path / "analysis-outdated-out",
+            validate_with_analysis_package=True,
+        )
+
+
+def test_analysis_adapter_rejects_module_without_validator(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A loaded validation module must expose a callable validator."""
+    monkeypatch.setattr(
+        analysis_adapter,
+        "_load_analysis_validation_module",
+        lambda: types.SimpleNamespace(validate_experiment_events="not-callable"),
+    )
+
+    with pytest.raises(ValueError, match="does not expose"):
+        analysis_adapter._run_optional_analysis_validation(Path("events.csv"))
+
+
+def test_analysis_adapter_uses_generic_message_for_non_sequence_errors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Validation reports with non-sequence errors should keep the fallback message."""
+
+    def validate_experiment_events(_path: Path) -> Any:
+        return types.SimpleNamespace(is_valid=False, errors=object())
+
+    monkeypatch.setattr(
+        analysis_adapter,
+        "_load_analysis_validation_module",
+        lambda: types.SimpleNamespace(validate_experiment_events=validate_experiment_events),
+    )
+
+    with pytest.raises(ValueError, match="Unified table validation failed"):
+        analysis_adapter._run_optional_analysis_validation(Path("events.csv"))
 
 
 def test_real_stack_interoperability_contracts(tmp_path: Path) -> None:

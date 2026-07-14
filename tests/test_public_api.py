@@ -35,6 +35,7 @@ def test_public_exports_match_curated_api() -> None:
         "StrategyComparisonConfig",
         "Study",
         "UnivariateComparisonConfig",
+        "__version__",
         "agent_result",
         "build_agent_architecture_comparison_study",
         "build_bivariate_comparison_study",
@@ -63,3 +64,9 @@ def test_public_exports_match_curated_api() -> None:
         "validate_study",
         "write_markdown_report",
     ]
+
+
+def test_package_version_is_public() -> None:
+    """Expose installed distribution metadata through the package API."""
+    assert isinstance(drexp.__version__, str)
+    assert drexp.__version__

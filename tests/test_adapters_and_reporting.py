@@ -42,7 +42,12 @@ from design_research_experiments.reporting import (
     render_significance_brief,
     write_markdown_report,
 )
-from design_research_experiments.schemas import Observation, ObservationLevel, RunStatus
+from design_research_experiments.schemas import (
+    Observation,
+    ObservationLevel,
+    RunStatus,
+    ValidationError,
+)
 from design_research_experiments.study import RunBudget, RunResult, RunSpec, Study, validate_study
 
 from .helpers import make_study
@@ -809,10 +814,10 @@ def test_analysis_adapter_raises_when_validation_report_fails(
         )
 
 
-def test_analysis_adapter_optional_validation_absent_package_is_noop(
+def test_analysis_adapter_requires_analysis_package_for_requested_validation(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Optional analysis validation should skip cleanly when the sibling package is absent."""
+    """Requested analysis validation should fail clearly when its dependency is absent."""
     study = make_study(tmp_path=tmp_path, study_id="analysis-absent")
     conditions = build_design(study)
 
@@ -823,15 +828,14 @@ def test_analysis_adapter_optional_validation_absent_package_is_noop(
 
     monkeypatch.setattr(analysis_adapter.importlib, "import_module", fake_import)
 
-    paths = analysis_adapter.export_analysis_tables(
-        study,
-        conditions=conditions,
-        run_results=[],
-        output_dir=tmp_path / "analysis-absent-out",
-        validate_with_analysis_package=True,
-    )
-
-    assert paths["events.csv"].exists()
+    with pytest.raises(ValidationError, match="pip install design-research-analysis"):
+        analysis_adapter.export_analysis_tables(
+            study,
+            conditions=conditions,
+            run_results=[],
+            output_dir=tmp_path / "analysis-absent-out",
+            validate_with_analysis_package=True,
+        )
 
 
 def test_analysis_adapter_rejects_outdated_installed_analysis_package(

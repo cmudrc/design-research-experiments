@@ -1,5 +1,7 @@
 """Public API exports for design-research-experiments."""
 
+from importlib.metadata import PackageNotFoundError, version
+
 from .adapters.analysis import export_analysis_tables
 from .adapters.problems import ProblemPacket, resolve_problem
 from .bundles import (
@@ -45,6 +47,11 @@ from .runners import agent_result, resume_study, run_study
 from .schemas import RunBudget, SeedPolicy
 from .study import Block, RunResult, RunSpec, Study, validate_study
 
+try:
+    __version__ = version("design-research-experiments")
+except PackageNotFoundError:
+    __version__ = "0+unknown"
+
 __all__ = [
     "AgentArchitectureComparisonConfig",
     "AnalysisPlan",
@@ -73,6 +80,7 @@ __all__ = [
     "StrategyComparisonConfig",
     "Study",
     "UnivariateComparisonConfig",
+    "__version__",
     "agent_result",
     "build_agent_architecture_comparison_study",
     "build_bivariate_comparison_study",

@@ -6,8 +6,9 @@ This page documents the shared docs and CI baseline for
 
 The experiments repo follows the common module pattern used across the family:
 docs surfaces are checked for consistency and example health is reported
-explicitly. Release state is tracked in GitHub milestones and release branches
-instead of generated README callouts.
+explicitly. Release state is tracked through package versions, GitHub Releases,
+and focused PRs instead of generated README callouts or default monthly
+milestones.
 
 Shared Module Baseline
 ----------------------

@@ -43,7 +43,7 @@ def resolve_problem(
         if owner_integration is None:
             raise ValidationError(
                 "String problem references now require `design_research_problems.integration`. "
-                "Install the coordinated monthly release or pass an explicit `ProblemPacket` "
+                "Install a compatible package release or pass an explicit `ProblemPacket` "
                 "through `problem_registry`."
             )
         binding = owner_integration.resolve_problem_binding(problem_spec_ref)
@@ -171,7 +171,7 @@ def _load_problems_integration_module() -> Any | None:
             return None
         raise ValidationError(
             "design-research-problems is installed but does not expose the package-owned "
-            "`integration` module. Upgrade to the coordinated monthly release."
+            "`integration` module. Upgrade to a compatible package release."
         ) from exc
 
 
@@ -198,7 +198,7 @@ def _evaluate_owner_problem(
     if not callable(evaluate):
         raise ValidationError(
             "design-research-problems is installed but does not expose "
-            "`evaluate_problem_output(...)`. Upgrade to the coordinated monthly release."
+            "`evaluate_problem_output(...)`. Upgrade to a compatible package release."
         )
 
     rows = evaluate(binding, run_output)

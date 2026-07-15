@@ -33,6 +33,8 @@ This package centers on reproducible experiment structure and execution:
   repeated measures, latin square, custom matrices)
 - run orchestration with deterministic seeding, checkpointing, resume support, and
   interactive `tqdm` progress on terminal runs
+- standalone condition callbacks for simulations that do not require synthetic
+  problem or agent bindings
 - canonical artifact exports (`study.yaml`, `manifest.json`, `conditions.csv`,
   `runs.csv`, `events.csv`, `evaluations.csv`, and machine-readable hypothesis/plan files)
 - documented artifact contracts that downstream analysis can ingest directory-first
@@ -107,10 +109,10 @@ make docs
 
 Top-level exports are intentionally small:
 
-- `Study`, `Factor`, `Level`, `Constraint`, `Condition`, `Block`
+- `Study`, `Factor`, `Level`, `Constraint`, `Condition`, `Block`, `DesignSpec`, `DesignKind`
 - `RecipeStudyConfig`, `ComparisonStudyConfig`, and recipe-specific typed config classes
 - `Hypothesis`, `OutcomeSpec`, `AnalysisPlan`
-- `RunSpec`, `RunResult`, `BenchmarkBundle`
+- `RunSpec`, `RunResult`, `RunOutput`, `ConditionRunner`, `BenchmarkBundle`
 - `build_design`, `generate_doe`, `materialize_conditions`
 - `build_univariate_comparison_study`, `build_bivariate_comparison_study`,
   `build_strategy_comparison_study`, and other recipe builders

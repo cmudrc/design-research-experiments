@@ -96,7 +96,6 @@ def test_hypothesis_coercion_and_binding_validation_cover_mapping_and_instance_p
             "contrast": {"left": "tooling", "right": "baseline", "operation": "ratio"},
             "direction": "greater",
             "minimum_effect_of_interest": 0.2,
-            "linked_analysis_plan_id": "ap1",
             "notes": "coverage regression",
         }
     )
@@ -159,17 +158,14 @@ def test_hypothesis_coercion_and_binding_validation_cover_mapping_and_instance_p
                 statement="bad refs",
                 independent_vars=("missing_factor",),
                 dependent_vars=("missing_outcome",),
-                linked_analysis_plan_id="missing-plan",
             ),
         ),
         factor_names=("tooling",),
         outcome_names=("score",),
-        analysis_plan_ids=("ap1",),
     )
-    assert len(errors) == 3
+    assert len(errors) == 2
     assert any("missing_factor" in error for error in errors)
     assert any("missing_outcome" in error for error in errors)
-    assert any("missing-plan" in error for error in errors)
 
 
 def test_metric_helpers_derive_process_counts_and_safe_numeric_values() -> None:

@@ -6,6 +6,7 @@ import pytest
 
 from design_research_experiments.bundles import optimization_bundle
 from design_research_experiments.conditions import Factor, FactorKind, Level
+from design_research_experiments.designs import DesignKind, DesignSpec
 from design_research_experiments.hypotheses import AnalysisPlan, OutcomeSpec
 from design_research_experiments.recipes import (
     BivariateComparisonConfig,
@@ -51,7 +52,6 @@ def test_optimization_benchmark_recipe_has_coherent_bindings() -> None:
 
     hypothesis = study.hypotheses[0]
     assert hypothesis.hypothesis_id == "h1"
-    assert hypothesis.linked_analysis_plan_id == "ap1"
     assert hypothesis.dependent_vars == ("primary_outcome",)
 
     analysis_plan = study.analysis_plans[0]
@@ -113,7 +113,10 @@ def test_recipe_override_sections_replace_wholesale() -> None:
             factors=custom_factors,
             outcomes=custom_outcomes,
             analysis_plans=custom_analysis_plan,
-            design_spec={"kind": "constrained_factorial", "randomize": True},
+            design_spec=DesignSpec(
+                kind=DesignKind.CONSTRAINED_FACTORIAL,
+                randomize=True,
+            ),
             run_budget=custom_budget,
         )
     )
@@ -121,7 +124,8 @@ def test_recipe_override_sections_replace_wholesale() -> None:
     assert study.factors == custom_factors
     assert study.outcomes == custom_outcomes
     assert study.analysis_plans == custom_analysis_plan
-    assert study.design_spec == {"kind": "constrained_factorial", "randomize": True}
+    assert study.design_spec.kind == DesignKind.CONSTRAINED_FACTORIAL
+    assert study.design_spec.randomize is True
     assert study.run_budget is custom_budget
     assert validate_study(study) == []
 
@@ -147,10 +151,23 @@ def test_bundle_defaults_apply_and_explicit_values_win() -> None:
 
 def test_invalid_recipe_override_surfaces_validation_errors() -> None:
     """Inconsistent override combos should be surfaced by study validation."""
-    study = build_prompt_framing_study(PromptFramingConfig(primary_outcomes=("missing",)))
+    study = build_prompt_framing_study(
+        PromptFramingConfig(
+            outcomes=(
+                OutcomeSpec(
+                    name="missing",
+                    source_table="runs",
+                    column="missing",
+                    aggregation="mean",
+                    primary=True,
+                ),
+            )
+        )
+    )
     errors = validate_study(study)
 
-    assert any("Primary outcome 'missing'" in error for error in errors)
+    assert study.primary_outcomes == ("missing",)
+    assert any("primary_outcome" in error for error in errors)
 
 
 def test_comparison_recipe_factor_precedence_uses_comparison_specific_overrides() -> None:

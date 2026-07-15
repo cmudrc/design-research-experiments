@@ -72,7 +72,6 @@ def main() -> None:
             ),
         ),
         run_budget=drex.RunBudget(replicates=1, parallelism=1, max_runs=1),
-        primary_outcomes=("primary_outcome",),
     )
     conditions = drex.build_design(study)
     run_results = drex.run_study(

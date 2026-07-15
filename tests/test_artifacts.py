@@ -50,7 +50,6 @@ def test_export_canonical_artifacts_writes_required_files_and_columns(tmp_path: 
                 statement="artifact hypothesis",
                 independent_vars=("agent_kind",),
                 dependent_vars=("primary_outcome",),
-                linked_analysis_plan_id="ap1",
             ),
         ),
         analysis_plans=(

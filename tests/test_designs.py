@@ -70,7 +70,6 @@ def test_build_design_latin_square_assigns_each_treatment_once_per_row_and_colum
                 statement="Check latin square",
                 independent_vars=("treatment",),
                 dependent_vars=("primary_outcome",),
-                linked_analysis_plan_id="ap1",
             ),
         ),
         analysis_plans=(

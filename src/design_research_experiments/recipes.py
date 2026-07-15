@@ -9,6 +9,7 @@ from typing import Any
 
 from .bundles import BenchmarkBundle, ideation_bundle, optimization_bundle
 from .conditions import Constraint, Factor, FactorKind, Level
+from .designs import DesignKind, DesignSpec
 from .hypotheses import AnalysisPlan, Hypothesis, HypothesisDirection, HypothesisKind, OutcomeSpec
 from .study import Block, RunBudget, SeedPolicy, Study
 
@@ -34,7 +35,7 @@ class RecipeStudyConfig:
     factors: tuple[Factor, ...] | None = None
     blocks: tuple[Block, ...] | None = None
     constraints: tuple[Constraint, ...] | None = None
-    design_spec: dict[str, Any] | None = None
+    design_spec: DesignSpec | None = None
     outcomes: tuple[OutcomeSpec, ...] | None = None
     analysis_plans: tuple[AnalysisPlan, ...] | None = None
     run_budget: RunBudget | None = None
@@ -44,8 +45,6 @@ class RecipeStudyConfig:
     notes: str | None = None
     problem_ids: tuple[str, ...] | None = None
     agent_specs: tuple[str, ...] | None = None
-    primary_outcomes: tuple[str, ...] | None = None
-    secondary_outcomes: tuple[str, ...] | None = None
     bundle: BenchmarkBundle | None = None
 
 
@@ -182,9 +181,7 @@ def _apply_recipe_config(study: Study, config: RecipeStudyConfig | None) -> Stud
         factors=config.factors if config.factors is not None else study.factors,
         blocks=config.blocks if config.blocks is not None else study.blocks,
         constraints=config.constraints if config.constraints is not None else study.constraints,
-        design_spec=dict(config.design_spec)
-        if config.design_spec is not None
-        else dict(study.design_spec),
+        design_spec=config.design_spec if config.design_spec is not None else study.design_spec,
         outcomes=config.outcomes if config.outcomes is not None else study.outcomes,
         analysis_plans=(
             config.analysis_plans if config.analysis_plans is not None else study.analysis_plans
@@ -200,16 +197,6 @@ def _apply_recipe_config(study: Study, config: RecipeStudyConfig | None) -> Stud
         notes=config.notes if config.notes is not None else study.notes,
         problem_ids=config.problem_ids if config.problem_ids is not None else bundle_problem_ids,
         agent_specs=config.agent_specs if config.agent_specs is not None else bundle_agent_specs,
-        primary_outcomes=(
-            config.primary_outcomes
-            if config.primary_outcomes is not None
-            else study.primary_outcomes
-        ),
-        secondary_outcomes=(
-            config.secondary_outcomes
-            if config.secondary_outcomes is not None
-            else study.secondary_outcomes
-        ),
     )
 
 
@@ -333,7 +320,6 @@ def _comparison_hypothesis(
         independent_vars=factor_names,
         dependent_vars=("primary_outcome",),
         direction=HypothesisDirection.DIFFERENT,
-        linked_analysis_plan_id="ap1",
     )
 
 
@@ -421,7 +407,7 @@ def _build_comparison_study(
             ),
         ),
         factors=resolved_factors,
-        design_spec={"kind": "constrained_factorial", "randomize": True},
+        design_spec=DesignSpec(kind=DesignKind.CONSTRAINED_FACTORIAL, randomize=True),
         outcomes=_default_outcomes(),
         analysis_plans=(
             _default_analysis_plan(
@@ -435,8 +421,6 @@ def _build_comparison_study(
         output_dir=Path("artifacts") / study_id,
         problem_ids=resolved_problem_ids,
         agent_specs=resolved_agent_specs,
-        primary_outcomes=("primary_outcome",),
-        secondary_outcomes=("latency_s",),
     )
     configured = _apply_recipe_config(defaults, config)
     return _finalize_comparison_bindings(
@@ -572,7 +556,6 @@ def build_agent_architecture_comparison_study(
         independent_vars=("agent_architecture", "prompt_difficulty"),
         dependent_vars=("primary_outcome",),
         direction=HypothesisDirection.DIFFERENT,
-        linked_analysis_plan_id="ap1",
     )
     defaults = Study(
         study_id="agent-architecture-comparison",
@@ -605,7 +588,7 @@ def build_agent_architecture_comparison_study(
             ),
         ),
         blocks=(Block(name="problem_family", levels=("ideation", "optimization")),),
-        design_spec={"kind": "constrained_factorial", "randomize": True},
+        design_spec=DesignSpec(kind=DesignKind.CONSTRAINED_FACTORIAL, randomize=True),
         outcomes=_default_outcomes(),
         analysis_plans=(_default_analysis_plan("h1"),),
         run_budget=RunBudget(replicates=2, parallelism=1),
@@ -613,8 +596,6 @@ def build_agent_architecture_comparison_study(
         output_dir=Path("artifacts") / "agent-architecture-comparison",
         problem_ids=("problem-a", "problem-b"),
         agent_specs=("direct-llm", "multi-step", "reflective"),
-        primary_outcomes=("primary_outcome",),
-        secondary_outcomes=("latency_s",),
     )
     return _apply_recipe_config(defaults, config)
 
@@ -629,7 +610,6 @@ def build_prompt_framing_study(config: PromptFramingConfig | None = None) -> Stu
         independent_vars=("prompt_frame", "prompt_difficulty"),
         dependent_vars=("primary_outcome",),
         direction=HypothesisDirection.DIFFERENT,
-        linked_analysis_plan_id="ap1",
     )
     defaults = Study(
         study_id="prompt-framing-study",
@@ -661,7 +641,7 @@ def build_prompt_framing_study(config: PromptFramingConfig | None = None) -> Stu
             ),
         ),
         blocks=(Block(name="domain", levels=("mobility", "health")),),
-        design_spec={"kind": "randomized_block", "randomize": True},
+        design_spec=DesignSpec(kind=DesignKind.RANDOMIZED_BLOCK, randomize=True),
         outcomes=_default_outcomes(),
         analysis_plans=(_default_analysis_plan("h1"),),
         run_budget=RunBudget(replicates=3, parallelism=1),
@@ -669,8 +649,6 @@ def build_prompt_framing_study(config: PromptFramingConfig | None = None) -> Stu
         output_dir=Path("artifacts") / "prompt-framing-study",
         problem_ids=("ideation-1", "ideation-2", "ideation-3"),
         agent_specs=("baseline-agent", "creative-agent"),
-        primary_outcomes=("primary_outcome",),
-        secondary_outcomes=("latency_s",),
     )
     return _apply_recipe_config(defaults, config)
 
@@ -685,7 +663,6 @@ def build_grammar_scaffold_study(config: GrammarScaffoldConfig | None = None) ->
         independent_vars=("generation_mode",),
         dependent_vars=("primary_outcome",),
         direction=HypothesisDirection.GREATER,
-        linked_analysis_plan_id="ap1",
     )
     defaults = Study(
         study_id="grammar-scaffold-study",
@@ -708,7 +685,7 @@ def build_grammar_scaffold_study(config: GrammarScaffoldConfig | None = None) ->
             ),
         ),
         blocks=(Block(name="problem_family", levels=("grammar", "text")),),
-        design_spec={"kind": "full_factorial", "randomize": True},
+        design_spec=DesignSpec(randomize=True),
         outcomes=_default_outcomes(),
         analysis_plans=(_default_analysis_plan("h1"),),
         run_budget=RunBudget(replicates=2, parallelism=1),
@@ -716,8 +693,6 @@ def build_grammar_scaffold_study(config: GrammarScaffoldConfig | None = None) ->
         output_dir=Path("artifacts") / "grammar-scaffold-study",
         problem_ids=("grammar-1", "grammar-2"),
         agent_specs=("direct-llm", "workflow-agent"),
-        primary_outcomes=("primary_outcome",),
-        secondary_outcomes=("latency_s",),
     )
     return _apply_recipe_config(defaults, config)
 
@@ -732,7 +707,6 @@ def build_human_vs_agent_process_study(config: HumanVsAgentProcessConfig | None 
         independent_vars=("team_mode",),
         dependent_vars=("primary_outcome",),
         direction=HypothesisDirection.DIFFERENT,
-        linked_analysis_plan_id="ap1",
     )
     defaults = Study(
         study_id="human-vs-agent-process",
@@ -755,7 +729,7 @@ def build_human_vs_agent_process_study(config: HumanVsAgentProcessConfig | None 
             ),
         ),
         blocks=(Block(name="cohort", levels=("novice", "expert")),),
-        design_spec={"kind": "repeated_measures", "counterbalance": True},
+        design_spec=DesignSpec(kind=DesignKind.REPEATED_MEASURES, counterbalance=True),
         outcomes=_default_outcomes(),
         analysis_plans=(_default_analysis_plan("h1"),),
         run_budget=RunBudget(replicates=1, parallelism=1),
@@ -763,8 +737,6 @@ def build_human_vs_agent_process_study(config: HumanVsAgentProcessConfig | None 
         output_dir=Path("artifacts") / "human-vs-agent-process",
         problem_ids=("teaming-1", "teaming-2"),
         agent_specs=("human-only", "ai-assisted", "hybrid"),
-        primary_outcomes=("primary_outcome",),
-        secondary_outcomes=("latency_s",),
     )
     return _apply_recipe_config(defaults, config)
 
@@ -781,7 +753,6 @@ def build_diversity_and_exploration_study(
         independent_vars=("search_strategy",),
         dependent_vars=("primary_outcome",),
         direction=HypothesisDirection.GREATER,
-        linked_analysis_plan_id="ap1",
     )
     defaults = Study(
         study_id="diversity-exploration",
@@ -804,7 +775,7 @@ def build_diversity_and_exploration_study(
             ),
         ),
         blocks=(Block(name="problem_family", levels=("bench-a", "bench-b", "bench-c")),),
-        design_spec={"kind": "randomized_block", "randomize": True},
+        design_spec=DesignSpec(kind=DesignKind.RANDOMIZED_BLOCK, randomize=True),
         outcomes=_default_outcomes(),
         analysis_plans=(_default_analysis_plan("h1"),),
         run_budget=RunBudget(replicates=2, parallelism=1),
@@ -812,8 +783,6 @@ def build_diversity_and_exploration_study(
         output_dir=Path("artifacts") / "diversity-exploration",
         problem_ids=("opt-a", "opt-b", "opt-c"),
         agent_specs=("deterministic", "self-learning"),
-        primary_outcomes=("primary_outcome",),
-        secondary_outcomes=("latency_s",),
     )
     return _apply_recipe_config(defaults, config)
 
@@ -830,7 +799,6 @@ def build_optimization_benchmark_study(
         independent_vars=("learning_strategy", "tuning_regime"),
         dependent_vars=("primary_outcome",),
         direction=HypothesisDirection.GREATER,
-        linked_analysis_plan_id="ap1",
     )
     bundle = optimization_bundle()
     defaults = Study(
@@ -865,7 +833,7 @@ def build_optimization_benchmark_study(
             ),
         ),
         blocks=(Block(name="problem_family", levels=("small", "medium", "large")),),
-        design_spec={"kind": "randomized_block", "randomize": True},
+        design_spec=DesignSpec(kind=DesignKind.RANDOMIZED_BLOCK, randomize=True),
         outcomes=_default_outcomes(),
         analysis_plans=(
             AnalysisPlan(
@@ -884,8 +852,6 @@ def build_optimization_benchmark_study(
         output_dir=Path("artifacts") / "optimization-benchmark",
         problem_ids=bundle.problem_ids,
         agent_specs=bundle.agent_specs,
-        primary_outcomes=("primary_outcome",),
-        secondary_outcomes=("latency_s",),
     )
     return _apply_recipe_config(defaults, config)
 

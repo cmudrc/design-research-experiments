@@ -5,8 +5,10 @@ from __future__ import annotations
 import csv
 import importlib
 import json
+import os
 import random
 import sqlite3
+import subprocess
 import sys
 import types
 from collections.abc import Mapping
@@ -28,6 +30,7 @@ from design_research_experiments.artifacts import (
 from design_research_experiments.conditions import Condition, Factor, FactorKind, Level
 from design_research_experiments.io import csv_io, json_io, sqlite_io, yaml_io
 from design_research_experiments.runners import (
+    RunOutput,
     dry_run_validate,
     reproducible_seed,
     resume_study,
@@ -40,6 +43,7 @@ from design_research_experiments.schemas import (
     RunBudget,
     RunStatus,
     SeedPolicy,
+    ValidationError,
     hash_identifier,
     load_callable,
     resolve_git_sha,
@@ -300,10 +304,157 @@ def test_study_serialization_validation_and_loading(tmp_path: Path) -> None:
     with pytest.raises(ValueError):
         load_study(tmp_path / "study.txt")
 
-    broken = make_study(tmp_path=tmp_path, study_id="broken", problem_ids=())
-    broken.primary_outcomes = ("missing",)
-    errors = validate_study(broken)
-    assert errors
+    broken_payload = study.to_dict()
+    broken_payload["primary_outcomes"] = ["missing"]
+    with pytest.raises(ValidationError, match="unknown outcomes"):
+        Study.from_dict(broken_payload)
+
+    contradictory_role_payload = study.to_dict()
+    contradictory_role_payload["primary_outcomes"] = []
+    with pytest.raises(ValidationError, match=r"OutcomeSpec\.primary conflicts"):
+        Study.from_dict(contradictory_role_payload)
+
+    secondary_conflict_payload = study.to_dict()
+    secondary_conflict_payload["secondary_outcomes"] = ["primary_outcome"]
+    with pytest.raises(ValidationError, match=r"Study\.secondary_outcomes"):
+        Study.from_dict(secondary_conflict_payload)
+
+    overlapping_roles_payload = study.to_dict()
+    overlapping_roles_payload["primary_outcomes"] = ["primary_outcome"]
+    overlapping_roles_payload["secondary_outcomes"] = ["primary_outcome"]
+    with pytest.raises(ValidationError, match="both primary and secondary"):
+        Study.from_dict(overlapping_roles_payload)
+
+    matching_legacy_payload = study.to_dict()
+    matching_legacy_payload["primary_outcomes"] = ["primary_outcome"]
+    matching_legacy_payload["hypotheses"][0]["linked_analysis_plan_id"] = "ap1"
+    migrated = Study.from_dict(matching_legacy_payload)
+    assert migrated.primary_outcomes == ("primary_outcome",)
+    assert "linked_analysis_plan_id" not in migrated.to_dict()["hypotheses"][0]
+
+    old_outcome_payload = study.to_dict()
+    old_outcome_payload["outcomes"][0].pop("primary")
+    old_outcome_payload["primary_outcomes"] = ["primary_outcome"]
+    assert Study.from_dict(old_outcome_payload).primary_outcomes == ("primary_outcome",)
+
+    unclassified_outcome_payload = study.to_dict()
+    unclassified_outcome_payload["outcomes"][0].pop("primary")
+    unclassified_outcome_payload["primary_outcomes"] = []
+    assert Study.from_dict(unclassified_outcome_payload).secondary_outcomes == ("primary_outcome",)
+
+    conflicting_link_payload = study.to_dict()
+    conflicting_link_payload["hypotheses"][0]["linked_analysis_plan_id"] = "other-plan"
+    with pytest.raises(ValidationError, match=r"AnalysisPlan\.hypothesis_ids is authoritative"):
+        Study.from_dict(conflicting_link_payload)
+
+
+def test_fresh_package_import_does_not_load_tqdm_auto() -> None:
+    """Importing the public package should not initialize notebook progress support."""
+    project_root = Path(__file__).resolve().parents[1]
+    environment = dict(os.environ)
+    environment["PYTHONPATH"] = str(project_root / "src")
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            (
+                "import sys; import design_research_experiments; "
+                "assert 'tqdm.auto' not in sys.modules"
+            ),
+        ],
+        cwd=project_root,
+        env=environment,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert completed.returncode == 0, completed.stderr
+
+
+def test_run_study_supports_standalone_condition_callbacks(tmp_path: Path) -> None:
+    """Standalone runs should retain normal seeds, checkpoints, resume, and artifacts."""
+    study = make_study(
+        tmp_path=tmp_path,
+        study_id="standalone-study",
+        problem_ids=(),
+        agent_specs=(),
+    )
+    callback_calls: list[tuple[str, int]] = []
+
+    def run_condition(run_spec: RunSpec, condition: Condition) -> RunOutput:
+        callback_calls.append((condition.condition_id, run_spec.seed))
+        score = float(condition.factor_assignments["variant"] == "b")
+        return RunOutput(
+            outputs={"variant": condition.factor_assignments["variant"], "score": score},
+            metrics={"primary_outcome": score},
+        )
+
+    conditions = runner_module.build_design(study)
+    assert validate_study(study) == []
+    assert any(
+        "condition_runner" in error
+        for error in dry_run_validate(study, conditions=conditions).errors
+    )
+    assert (
+        dry_run_validate(
+            study,
+            conditions=conditions,
+            condition_runner=run_condition,
+        ).errors
+        == []
+    )
+
+    results = run_study(
+        study,
+        conditions=conditions,
+        condition_runner=run_condition,
+        parallelism=2,
+        show_progress=False,
+    )
+
+    assert len(results) == 2
+    assert len(callback_calls) == 2
+    assert len({seed for _, seed in callback_calls}) == 2
+    assert all(result.status == RunStatus.SUCCESS for result in results)
+    assert all(result.run_spec is not None for result in results)
+    assert all(result.run_spec.problem_id == "" for result in results if result.run_spec)
+    assert all(result.run_spec.problem_spec_ref is None for result in results if result.run_spec)
+    assert all(result.run_spec.agent_spec_ref is None for result in results if result.run_spec)
+    assert (Path(study.output_dir or "") / "runs.csv").exists()
+
+    callback_calls.clear()
+    resumed = resume_study(
+        study,
+        conditions=conditions,
+        condition_runner=run_condition,
+        parallelism=2,
+        show_progress=False,
+    )
+    assert len(resumed) == 2
+    assert callback_calls == []
+
+
+def test_standalone_condition_callback_failures_are_normalized(tmp_path: Path) -> None:
+    """Standalone callback exceptions should become ordinary failed run results."""
+    study = make_study(
+        tmp_path=tmp_path,
+        study_id="standalone-failure",
+        problem_ids=(),
+        agent_specs=(),
+    )
+
+    def fail_condition(_run_spec: RunSpec, _condition: Condition) -> RunOutput:
+        raise RuntimeError("simulation failed")
+
+    results = run_study(
+        study,
+        condition_runner=fail_condition,
+        show_progress=False,
+    )
+
+    assert all(result.status == RunStatus.FAILED for result in results)
+    assert all(result.error_info == "RuntimeError: simulation failed" for result in results)
+    assert all(result.provenance_info["execution_mode"] == "condition_runner" for result in results)
 
 
 def test_artifact_checkpoint_bundle_and_runner_paths(tmp_path: Path) -> None:
@@ -604,7 +755,7 @@ def test_create_run_progress_respects_suppression_paths(
     """Progress adapter should avoid visible bars when disabled or not interactive."""
     monkeypatch.setattr(
         runner_module,
-        "tqdm",
+        "_create_progress_bar",
         lambda **_kwargs: (_ for _ in ()).throw(AssertionError("tqdm should not be created")),
     )
 
@@ -649,7 +800,7 @@ def test_create_run_progress_uses_tqdm_when_enabled(monkeypatch: pytest.MonkeyPa
         calls.append(kwargs)
         return bar
 
-    monkeypatch.setattr(runner_module, "tqdm", _fake_tqdm)
+    monkeypatch.setattr(runner_module, "_create_progress_bar", _fake_tqdm)
     monkeypatch.setattr(runner_module.sys, "stderr", _FakeStream(tty=True))
 
     progress = runner_module._create_run_progress(

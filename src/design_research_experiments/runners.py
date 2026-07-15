@@ -6,14 +6,12 @@ import importlib
 import random
 import sys
 import time
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
-
-from tqdm.auto import tqdm
 
 from .adapters.agents import AgentBinding, execute_agent
 from .adapters.problems import evaluate_problem, resolve_problem
@@ -35,6 +33,17 @@ class DryRunReport:
 
     errors: list[str]
     planned_runs: int
+
+
+@dataclass(slots=True)
+class RunOutput:
+    """Outputs and metrics returned by a standalone condition runner."""
+
+    outputs: Mapping[str, Any]
+    metrics: Mapping[str, Any] = field(default_factory=dict)
+
+
+type ConditionRunner = Callable[[RunSpec, Condition], RunOutput]
 
 
 def agent_result(
@@ -138,6 +147,7 @@ class SerialRunner:
         checkpoint: bool,
         fail_fast: bool,
         progress: _RunProgress,
+        condition_runner: ConditionRunner | None,
     ) -> list[RunResult]:
         """Execute all run specs one-by-one."""
         results: list[RunResult] = []
@@ -148,6 +158,7 @@ class SerialRunner:
                 condition=condition,
                 agent_bindings=agent_bindings,
                 problem_registry=problem_registry,
+                condition_runner=condition_runner,
             )
             results.append(result)
             if checkpoint:
@@ -173,6 +184,7 @@ class LocalParallelRunner:
         fail_fast: bool,
         max_workers: int,
         progress: _RunProgress,
+        condition_runner: ConditionRunner | None,
     ) -> list[RunResult]:
         """Execute run specs in a local thread pool."""
         results: list[RunResult] = []
@@ -187,6 +199,7 @@ class LocalParallelRunner:
                     condition=condition,
                     agent_bindings=agent_bindings,
                     problem_registry=problem_registry,
+                    condition_runner=condition_runner,
                 )
                 future_by_run_id[future] = run_spec.run_id
 
@@ -218,10 +231,15 @@ def run_study(
     checkpoint: bool = True,
     include_sqlite: bool = False,
     show_progress: bool | None = None,
+    condition_runner: ConditionRunner | None = None,
 ) -> list[RunResult]:
-    """Run a study end-to-end and export canonical artifacts."""
+    """Run a study through agent/problem bindings or a standalone callback."""
     resolved_conditions = list(conditions) if conditions is not None else build_design(study)
-    report = dry_run_validate(study, conditions=resolved_conditions)
+    report = dry_run_validate(
+        study,
+        conditions=resolved_conditions,
+        condition_runner=condition_runner,
+    )
     if report.errors:
         raise ValidationError("\n".join(report.errors))
     if dry_run:
@@ -230,7 +248,11 @@ def run_study(
     output_dir = Path(study.output_dir or Path("artifacts") / study.study_id)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    all_run_specs = _build_run_specs(study=study, conditions=resolved_conditions)
+    all_run_specs = _build_run_specs(
+        study=study,
+        conditions=resolved_conditions,
+        standalone=condition_runner is not None,
+    )
     planned_run_ids = {run_spec.run_id for run_spec in all_run_specs}
     condition_by_id = {condition.condition_id: condition for condition in resolved_conditions}
 
@@ -271,6 +293,7 @@ def run_study(
                 checkpoint=checkpoint,
                 fail_fast=study.run_budget.fail_fast,
                 progress=progress,
+                condition_runner=condition_runner,
             )
         else:
             parallel_runner = LocalParallelRunner()
@@ -284,6 +307,7 @@ def run_study(
                 fail_fast=study.run_budget.fail_fast,
                 max_workers=resolved_parallelism,
                 progress=progress,
+                condition_runner=condition_runner,
             )
 
         all_results = existing_results + new_results
@@ -309,6 +333,7 @@ def resume_study(
     checkpoint: bool = True,
     include_sqlite: bool = False,
     show_progress: bool | None = None,
+    condition_runner: ConditionRunner | None = None,
 ) -> list[RunResult]:
     """Resume a study from checkpointed run results."""
     return run_study(
@@ -322,18 +347,38 @@ def resume_study(
         checkpoint=checkpoint,
         include_sqlite=include_sqlite,
         show_progress=show_progress,
+        condition_runner=condition_runner,
     )
 
 
-def dry_run_validate(study: Study, *, conditions: Sequence[Condition]) -> DryRunReport:
+def dry_run_validate(
+    study: Study,
+    *,
+    conditions: Sequence[Condition],
+    condition_runner: ConditionRunner | None = None,
+) -> DryRunReport:
     """Validate run inputs before launching execution."""
     errors = list(validate_study(study))
+
+    has_problem_binding = bool(study.problem_ids) or any(
+        factor.name in {"problem_id", "problem"} for factor in study.factors
+    )
+    if condition_runner is None and not has_problem_binding:
+        errors.append(
+            "Study execution requires problem IDs, a problem factor, or condition_runner."
+        )
 
     admissible_conditions = [condition for condition in conditions if condition.admissible]
     if not admissible_conditions:
         errors.append("No admissible conditions are available to execute.")
 
-    planned_runs = len(_build_run_specs(study=study, conditions=conditions))
+    planned_runs = len(
+        _build_run_specs(
+            study=study,
+            conditions=conditions,
+            standalone=condition_runner is not None,
+        )
+    )
     if planned_runs < 1:
         errors.append("No run specifications were generated.")
 
@@ -379,14 +424,26 @@ def _reproducible_seed(seed: int) -> Any:
             set_state(state)
 
 
-def _build_run_specs(study: Study, conditions: Sequence[Condition]) -> list[RunSpec]:
+def _build_run_specs(
+    study: Study,
+    conditions: Sequence[Condition],
+    *,
+    standalone: bool = False,
+) -> list[RunSpec]:
     """Materialize deterministic run specs for all admissible conditions."""
     admissible_conditions = [condition for condition in conditions if condition.admissible]
 
     run_specs: list[RunSpec] = []
     for condition in admissible_conditions:
-        agent_ids = _resolve_agent_ids(study=study, condition=condition)
-        problem_ids = _resolve_problem_ids(study=study, condition=condition)
+        agent_ids = (None,) if standalone else _resolve_agent_ids(study=study, condition=condition)
+        problem_ids = (
+            (None,)
+            if standalone
+            else _resolve_problem_ids(
+                study=study,
+                condition=condition,
+            )
+        )
 
         for replicate in range(1, study.run_budget.replicates + 1):
             for agent_id in agent_ids:
@@ -412,7 +469,7 @@ def _build_run_specs(study: Study, conditions: Sequence[Condition]) -> list[RunS
                             run_id=run_id,
                             study_id=study.study_id,
                             condition_id=condition.condition_id,
-                            problem_id=problem_id,
+                            problem_id=problem_id or "",
                             replicate=replicate,
                             seed=seed,
                             agent_spec_ref=agent_id,
@@ -468,7 +525,7 @@ def _create_run_progress(
     failed = sum(1 for result in run_results if result.status == RunStatus.FAILED)
 
     if _should_render_progress(show_progress=show_progress, pending_runs=pending_runs):
-        bar: Any = tqdm(
+        bar: Any = _create_progress_bar(
             total=total,
             initial=initial,
             desc=study_id,
@@ -481,6 +538,13 @@ def _create_run_progress(
         bar = _NoOpProgressBar()
 
     return _RunProgress(total=total, initial=initial, success=success, failed=failed, _bar=bar)
+
+
+def _create_progress_bar(**kwargs: Any) -> Any:
+    """Load tqdm only when a visible progress bar is requested."""
+    from tqdm.auto import tqdm
+
+    return tqdm(**kwargs)
 
 
 def _should_render_progress(*, show_progress: bool | None, pending_runs: int) -> bool:
@@ -500,6 +564,7 @@ def _execute_single_run(
     condition: Condition,
     agent_bindings: Mapping[str, AgentBinding] | None,
     problem_registry: Mapping[str, Any] | None,
+    condition_runner: ConditionRunner | None,
 ) -> RunResult:
     """Execute one run spec with failure isolation."""
     started_at = utc_now_iso()
@@ -507,6 +572,15 @@ def _execute_single_run(
 
     try:
         with reproducible_seed(run_spec.seed):
+            if condition_runner is not None:
+                return _execute_condition_runner(
+                    condition_runner=condition_runner,
+                    run_spec=run_spec,
+                    condition=condition,
+                    started_at=started_at,
+                    start_time=start_time,
+                )
+
             problem_packet = resolve_problem(
                 run_spec.problem_spec_ref,
                 registry=problem_registry,
@@ -579,6 +653,9 @@ def _execute_single_run(
             )
     except Exception as exc:
         latency_s = time.perf_counter() - start_time
+        provenance_info = {"agent_id": run_spec.execution_metadata.get("agent_id")}
+        if condition_runner is not None:
+            provenance_info["execution_mode"] = "condition_runner"
         return RunResult(
             run_id=run_spec.run_id,
             status=RunStatus.FAILED,
@@ -590,9 +667,40 @@ def _execute_single_run(
             trace_refs=[],
             artifact_refs=[],
             error_info=f"{type(exc).__name__}: {exc}",
-            provenance_info={"agent_id": run_spec.execution_metadata.get("agent_id")},
+            provenance_info=provenance_info,
             observations=[],
             run_spec=run_spec,
             started_at=started_at,
             ended_at=utc_now_iso(),
         )
+
+
+def _execute_condition_runner(
+    *,
+    condition_runner: ConditionRunner,
+    run_spec: RunSpec,
+    condition: Condition,
+    started_at: str,
+    start_time: float,
+) -> RunResult:
+    """Normalize one successful standalone callback result."""
+    output = condition_runner(run_spec, condition)
+    if not isinstance(output, RunOutput):
+        raise TypeError("condition_runner must return RunOutput.")
+
+    latency_s = time.perf_counter() - start_time
+    metrics = dict(output.metrics)
+    metrics.setdefault("latency_s", latency_s)
+    cost_usd = float(metrics.get("cost_usd", 0.0) or 0.0)
+    return RunResult(
+        run_id=run_spec.run_id,
+        status=RunStatus.SUCCESS,
+        outputs=dict(output.outputs),
+        metrics=metrics,
+        cost=cost_usd,
+        latency=latency_s,
+        provenance_info={"execution_mode": "condition_runner"},
+        run_spec=run_spec,
+        started_at=started_at,
+        ended_at=utc_now_iso(),
+    )

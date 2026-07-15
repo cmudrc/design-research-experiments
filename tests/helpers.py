@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from design_research_experiments.conditions import Constraint, Factor, FactorKind, Level
+from design_research_experiments.designs import DesignSpec, coerce_design_spec
 from design_research_experiments.hypotheses import AnalysisPlan, Hypothesis, OutcomeSpec
 from design_research_experiments.study import Block, RunBudget, SeedPolicy, Study
 
@@ -14,7 +15,7 @@ def make_study(
     *,
     tmp_path: Path,
     study_id: str = "test-study",
-    design_spec: dict[str, Any] | None = None,
+    design_spec: DesignSpec | dict[str, Any] | None = None,
     factors: tuple[Factor, ...] | None = None,
     blocks: tuple[Block, ...] = (),
     constraints: tuple[Constraint, ...] = (),
@@ -40,7 +41,9 @@ def make_study(
         factors=resolved_factors,
         blocks=blocks,
         constraints=constraints,
-        design_spec=design_spec or {"kind": "full_factorial", "randomize": False},
+        design_spec=coerce_design_spec(
+            design_spec or {"kind": "full_factorial", "randomize": False}
+        ),
         outcomes=(
             OutcomeSpec(
                 name="primary_outcome",
@@ -57,7 +60,6 @@ def make_study(
                 statement="variant changes outcome",
                 independent_vars=(resolved_factors[0].name,),
                 dependent_vars=("primary_outcome",),
-                linked_analysis_plan_id="ap1",
             ),
         ),
         analysis_plans=(
@@ -73,5 +75,4 @@ def make_study(
         output_dir=tmp_path / study_id,
         problem_ids=problem_ids,
         agent_specs=agent_specs,
-        primary_outcomes=("primary_outcome",),
     )

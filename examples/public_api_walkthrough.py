@@ -44,7 +44,6 @@ def build_demo_study(output_dir: Path) -> drex.Study:
                 statement="Prompt frame changes primary outcome.",
                 independent_vars=("prompt_frame",),
                 dependent_vars=("primary_outcome",),
-                linked_analysis_plan_id="ap1",
             ),
         ),
         outcomes=(
@@ -60,7 +59,6 @@ def build_demo_study(output_dir: Path) -> drex.Study:
         output_dir=output_dir,
         problem_ids=("problem-1",),
         agent_specs=("agent-a",),
-        primary_outcomes=("primary_outcome",),
     )
 
 

@@ -9,14 +9,17 @@ Define hypotheses, outcomes, factors, levels, and admissibility constraints.
 2. Instantiate core objects
 ---------------------------
 
-Build a ``Study`` specification, including run budgets, replication policy, and
-agent/problem bindings.
+Build a ``Study`` specification, including a typed ``DesignSpec``, run budgets,
+replication policy, and either agent/problem bindings or a standalone
+``ConditionRunner``.
 
 3. Execute or inspect
 ---------------------
 
 Materialize conditions, execute runs, and monitor checkpointed progress. In
 interactive terminals, run execution shows a ``tqdm`` progress bar by default.
+Importing the package does not initialize notebook progress support; ``tqdm``
+is loaded only when a visible progress bar is requested.
 
 4. Capture artifacts
 --------------------

@@ -10,18 +10,17 @@ often than staying.
    ``stay`` and ``switch``.
 2. Validate the study and materialize the two conditions with
    ``drex.build_design``.
-3. Simulate 100 seeded random Monty Hall games for each condition, write a
-   summary CSV artifact, and print the resulting win counts.
+3. Pass a typed condition callback to ``drex.run_study`` so the standard runner
+   owns deterministic seeds, result normalization, and canonical artifacts.
 
 ## Expected Results
-The script prints 2 materialized conditions, simulates 100 games per condition
-with a fixed seed, reports ``stay`` winning ``35/100`` and ``switch`` winning
-``65/100``, and writes a summary CSV artifact under ``artifacts/monty-hall``.
+The script completes 2 conditions, simulates 100 games per condition, reports
+``stay`` winning ``32/100`` and ``switch`` winning ``70/100``, and writes the
+canonical artifact set under ``artifacts/monty-hall``.
 """
 
 from __future__ import annotations
 
-import csv
 import random
 from pathlib import Path
 
@@ -59,7 +58,6 @@ def build_monty_hall_study(output_dir: Path) -> drex.Study:
                 statement="Switching wins more often than staying in the Monty Hall game.",
                 independent_vars=("strategy",),
                 dependent_vars=("win_rate",),
-                linked_analysis_plan_id="ap1",
             ),
         ),
         outcomes=(
@@ -80,11 +78,9 @@ def build_monty_hall_study(output_dir: Path) -> drex.Study:
                 outcomes=("win_rate",),
             ),
         ),
-        design_spec={"kind": "full_factorial", "randomize": False},
+        design_spec=drex.DesignSpec(kind=drex.DesignKind.FULL_FACTORIAL),
         seed_policy=drex.SeedPolicy(base_seed=SIMULATION_SEED),
         output_dir=output_dir,
-        problem_ids=("monty-hall-game",),
-        primary_outcomes=("win_rate",),
     )
 
 
@@ -107,14 +103,17 @@ def resolve_final_choice(*, initial_choice: str, revealed_door: str, strategy: s
     raise RuntimeError("Expected exactly one switch target.")
 
 
-def simulate_condition(condition: drex.Condition, *, n_games: int, seed: int) -> dict[str, object]:
-    """Simulate one strategy condition over many random Monty Hall games."""
+def simulate_condition(
+    run_spec: drex.RunSpec,
+    condition: drex.Condition,
+) -> drex.RunOutput:
+    """Simulate one strategy condition with the runner-provided seed."""
     assignments = condition.factor_assignments
     strategy = str(assignments["strategy"])
-    rng = random.Random(seed)
+    rng = random.Random(run_spec.seed)
     wins = 0
 
-    for _ in range(n_games):
+    for _ in range(SIMULATED_GAMES):
         prize_door = str(rng.choice(DOORS))
         initial_choice = str(rng.choice(DOORS))
         revealed_door = reveal_goat_door(
@@ -129,26 +128,18 @@ def simulate_condition(condition: drex.Condition, *, n_games: int, seed: int) ->
         )
         wins += int(final_choice == prize_door)
 
-    return {
-        "condition_id": condition.condition_id,
-        "strategy": strategy,
-        "seed": seed,
-        "games": n_games,
-        "wins": wins,
-        "win_rate": round(wins / n_games, 2),
-    }
-
-
-def write_summary(path: Path, rows: list[dict[str, object]]) -> None:
-    """Write the per-condition simulation summary as a CSV artifact."""
-    if not rows:
-        raise RuntimeError("Expected scored rows before writing artifacts.")
-
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", encoding="utf-8", newline="") as file_obj:
-        writer = csv.DictWriter(file_obj, fieldnames=list(rows[0]))
-        writer.writeheader()
-        writer.writerows(rows)
+    win_rate = round(wins / SIMULATED_GAMES, 2)
+    return drex.RunOutput(
+        outputs={
+            "condition_id": condition.condition_id,
+            "strategy": strategy,
+            "seed": run_spec.seed,
+            "games": SIMULATED_GAMES,
+            "wins": wins,
+            "win_rate": win_rate,
+        },
+        metrics={"primary_outcome": win_rate, "win_rate": win_rate},
+    )
 
 
 def lookup_strategy(rows: list[dict[str, object]], *, strategy: str) -> dict[str, object]:
@@ -160,7 +151,7 @@ def lookup_strategy(rows: list[dict[str, object]], *, strategy: str) -> dict[str
 
 
 def main() -> None:
-    """Simulate random Monty Hall games for each strategy condition."""
+    """Run random Monty Hall games through standalone study orchestration."""
     output_dir = Path("artifacts") / "monty-hall"
     study = build_monty_hall_study(output_dir)
 
@@ -168,18 +159,13 @@ def main() -> None:
     if errors:
         raise RuntimeError("\n".join(errors))
 
-    conditions = drex.build_design(study)
-    rows = [
-        simulate_condition(
-            condition,
-            n_games=SIMULATED_GAMES,
-            seed=study.seed_policy.base_seed,
-        )
-        for condition in conditions
-    ]
-
-    csv_path = output_dir / "simulation_summary.csv"
-    write_summary(csv_path, rows)
+    runner: drex.ConditionRunner = simulate_condition
+    results = drex.run_study(
+        study,
+        condition_runner=runner,
+        show_progress=False,
+    )
+    rows = [result.outputs for result in results]
 
     stay = lookup_strategy(rows, strategy="stay")
     switch = lookup_strategy(rows, strategy="switch")
@@ -187,13 +173,11 @@ def main() -> None:
     if float(switch["win_rate"]) <= float(stay["win_rate"]):
         raise RuntimeError("Switching should strictly outperform staying in Monty Hall.")
 
-    print(f"Materialized {len(conditions)} conditions")
-    print(
-        f"Simulated {SIMULATED_GAMES} games per condition with seed {study.seed_policy.base_seed}"
-    )
+    print(f"Completed {len(results)} conditions")
+    print(f"Simulated {SIMULATED_GAMES} games per condition")
     print(f"stay wins {stay['wins']}/{stay['games']} = {stay['win_rate']:.2f}")
     print(f"switch wins {switch['wins']}/{switch['games']} = {switch['win_rate']:.2f}")
-    print(f"Wrote simulation summary CSV to {csv_path}")
+    print(f"Wrote canonical artifacts to {output_dir}")
 
 
 if __name__ == "__main__":

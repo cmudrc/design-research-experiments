@@ -68,6 +68,8 @@ class DesignSpec:
 
     def __post_init__(self) -> None:
         """Validate design-spec bounds."""
+        if not isinstance(self.kind, DesignKind):
+            self.kind = _coerce_design_kind(str(self.kind))
         if self.replicates < 1:
             raise ValidationError("DesignSpec.replicates must be >= 1.")
         if self.n_samples is not None and self.n_samples < 1:

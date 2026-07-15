@@ -71,7 +71,7 @@ def render_methods_scaffold(study: Study) -> str:
         "## Methods",
         "",
         f"Study ID: `{study.study_id}`",
-        f"Design: `{study.design_spec.get('kind', 'unknown')}`",
+        f"Design: `{study.design_spec.kind.value}`",
         f"Replicates: `{study.run_budget.replicates}`",
         f"Seed policy: `{study.seed_policy.strategy}`",
         "",

@@ -9,7 +9,10 @@ The top-level package exports a curated public API suitable for notebook/script 
 - ``Level``
 - ``Constraint``
 - ``Condition``
+- ``ConditionRunner``
 - ``Block``
+- ``DesignKind``
+- ``DesignSpec``
 - ``RunBudget``
 - ``SeedPolicy``
 - ``ProblemPacket``
@@ -29,6 +32,7 @@ The top-level package exports a curated public API suitable for notebook/script 
 - ``AnalysisPlan``
 - ``RunSpec``
 - ``RunResult``
+- ``RunOutput``
 - ``BenchmarkBundle``
 - ``agent_result``
 - ``ideation_bundle``

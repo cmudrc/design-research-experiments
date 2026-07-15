@@ -95,7 +95,6 @@ class Hypothesis:
     contrast: Contrast | None = None
     direction: HypothesisDirection = HypothesisDirection.DIFFERENT
     minimum_effect_of_interest: float | None = None
-    linked_analysis_plan_id: str | None = None
     notes: str = ""
 
     def __post_init__(self) -> None:
@@ -141,13 +140,11 @@ def validate_hypothesis_bindings(
     *,
     factor_names: Sequence[str],
     outcome_names: Sequence[str],
-    analysis_plan_ids: Sequence[str],
 ) -> list[str]:
-    """Validate references from hypotheses to factors, outcomes, and analysis plans."""
+    """Validate references from hypotheses to factors and outcomes."""
     errors: list[str] = []
     factor_name_set = set(factor_names)
     outcome_name_set = set(outcome_names)
-    analysis_plan_id_set = set(analysis_plan_ids)
 
     for hypothesis in hypotheses:
         for variable in hypothesis.independent_vars:
@@ -164,15 +161,6 @@ def validate_hypothesis_bindings(
                     f"'{hypothesis.hypothesis_id}' references unknown dependent variable "
                     f"'{variable}'."
                 )
-
-        if (
-            hypothesis.linked_analysis_plan_id is not None
-            and hypothesis.linked_analysis_plan_id not in analysis_plan_id_set
-        ):
-            errors.append(
-                f"Hypothesis '{hypothesis.hypothesis_id}' references unknown analysis plan "
-                f"'{hypothesis.linked_analysis_plan_id}'."
-            )
 
     return errors
 
@@ -231,7 +219,6 @@ def coerce_hypothesis(value: Hypothesis | Mapping[str, Any]) -> Hypothesis:
             str(mapping.get("direction", HypothesisDirection.DIFFERENT.value))
         ),
         minimum_effect_of_interest=cast(float | None, mapping.get("minimum_effect_of_interest")),
-        linked_analysis_plan_id=cast(str | None, mapping.get("linked_analysis_plan_id")),
         notes=str(mapping.get("notes", "")),
     )
 

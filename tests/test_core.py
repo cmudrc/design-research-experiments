@@ -34,6 +34,37 @@ def test_agent_result_builds_custom_agent_payload() -> None:
     }
 
 
+def test_study_validates_identity_and_derives_outcome_roles() -> None:
+    """Study identity and outcome-role views should stay local to the typed schema."""
+    with pytest.raises(ValueError, match=r"Study\.study_id"):
+        Study(study_id="", title="Title", description="invalid")
+    with pytest.raises(ValueError, match=r"Study\.title"):
+        Study(study_id="study", title="", description="invalid")
+
+    study = Study(
+        study_id="outcome-roles",
+        title="Outcome roles",
+        description="role derivation",
+        outcomes=(
+            OutcomeSpec(
+                name="quality",
+                source_table="runs",
+                column="quality",
+                aggregation="mean",
+                primary=True,
+            ),
+            OutcomeSpec(
+                name="latency",
+                source_table="runs",
+                column="latency_s",
+                aggregation="mean",
+            ),
+        ),
+    )
+    assert study.primary_outcomes == ("quality",)
+    assert study.secondary_outcomes == ("latency",)
+
+
 def test_validate_study_detects_unknown_hypothesis_dependent_variable() -> None:
     """Validation should fail when a hypothesis references an unknown outcome."""
     study = Study(
@@ -64,11 +95,15 @@ def test_validate_study_detects_unknown_hypothesis_dependent_variable() -> None:
                 statement="invalid dependent var",
                 independent_vars=("agent_kind",),
                 dependent_vars=("missing_outcome",),
-                linked_analysis_plan_id="ap1",
             ),
         ),
         analysis_plans=(
             AnalysisPlan(analysis_plan_id="ap1", hypothesis_ids=("h1",), tests=("ttest",)),
+            AnalysisPlan(
+                analysis_plan_id="ap1",
+                hypothesis_ids=("missing-hypothesis",),
+                tests=("ttest",),
+            ),
         ),
         problem_ids=("problem-1",),
     )
@@ -76,6 +111,8 @@ def test_validate_study_detects_unknown_hypothesis_dependent_variable() -> None:
     errors = validate_study(study)
 
     assert any("missing_outcome" in error for error in errors)
+    assert any("Duplicate analysis plan" in error for error in errors)
+    assert any("missing-hypothesis" in error for error in errors)
 
 
 def test_run_study_executes_serial_with_callable_agent(tmp_path: Path) -> None:
@@ -125,7 +162,6 @@ def test_run_study_executes_serial_with_callable_agent(tmp_path: Path) -> None:
                 statement="runner hypothesis",
                 independent_vars=("difficulty",),
                 dependent_vars=("primary_outcome",),
-                linked_analysis_plan_id="ap1",
             ),
         ),
         analysis_plans=(
@@ -238,7 +274,6 @@ def test_run_study_supports_public_agent_ids_without_explicit_bindings(
                 statement="runner hypothesis",
                 independent_vars=("difficulty",),
                 dependent_vars=("primary_outcome",),
-                linked_analysis_plan_id="ap1",
             ),
         ),
         analysis_plans=(

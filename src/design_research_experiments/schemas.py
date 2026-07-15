@@ -17,7 +17,7 @@ from enum import Enum, StrEnum
 from pathlib import Path
 from typing import Any, cast
 
-SCHEMA_VERSION = "0.1.0"
+SCHEMA_VERSION = "0.2.0"
 
 
 class ValidationError(ValueError):

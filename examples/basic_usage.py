@@ -51,12 +51,12 @@ def main() -> None:
                 statement="Prompt frame influences the primary outcome.",
                 independent_vars=("prompt_frame",),
                 dependent_vars=("primary_outcome",),
-                linked_analysis_plan_id="ap1",
             ),
         ),
         analysis_plans=(
             drex.AnalysisPlan(analysis_plan_id="ap1", hypothesis_ids=("h1",), tests=("ttest",)),
         ),
+        design_spec=drex.DesignSpec(kind=drex.DesignKind.FULL_FACTORIAL),
         problem_ids=("problem-1",),
     )
 

@@ -17,8 +17,8 @@ Technical Implementation
    ``stay`` and ``switch``.
 2. Validate the study and materialize the two conditions with
    ``drex.build_design``.
-3. Simulate 100 seeded random Monty Hall games for each condition, write a
-   summary CSV artifact, and print the resulting win counts.
+3. Pass a typed condition callback to ``drex.run_study`` so the standard runner
+   owns deterministic seeds, result normalization, and canonical artifacts.
 
 .. literalinclude:: ../../../examples/monty_hall_simulation.py
    :language: python
@@ -34,6 +34,6 @@ Expected Results
 
    PYTHONPATH=src python examples/monty_hall_simulation.py
 
-The script prints 2 materialized conditions, simulates 100 games per condition
-with a fixed seed, reports ``stay`` winning ``35/100`` and ``switch`` winning
-``65/100``, and writes a summary CSV artifact under ``artifacts/monty-hall``.
+The script completes 2 conditions, simulates 100 games per condition, reports
+``stay`` winning ``32/100`` and ``switch`` winning ``70/100``, and writes the
+canonical artifact set under ``artifacts/monty-hall``.

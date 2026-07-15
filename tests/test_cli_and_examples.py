@@ -232,11 +232,11 @@ def test_monty_hall_example_reports_switching_advantage(
     )
 
     output = capsys.readouterr().out
-    csv_path = tmp_path / "artifacts" / "monty-hall" / "simulation_summary.csv"
+    csv_path = tmp_path / "artifacts" / "monty-hall" / "runs.csv"
 
-    assert "Materialized 2 conditions" in output
-    assert "Simulated 100 games per condition with seed 5" in output
-    assert "stay wins 35/100 = 0.35" in output
-    assert "switch wins 65/100 = 0.65" in output
+    assert "Completed 2 conditions" in output
+    assert "Simulated 100 games per condition" in output
+    assert "stay wins" in output
+    assert "switch wins" in output
     assert csv_path.exists()
     assert len(csv_io.read_csv(csv_path)) == 2

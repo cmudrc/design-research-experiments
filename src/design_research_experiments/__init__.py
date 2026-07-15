@@ -12,7 +12,7 @@ from .bundles import (
     optimization_bundle,
 )
 from .conditions import Condition, Constraint, Factor, FactorKind, Level, materialize_conditions
-from .designs import build_design, generate_doe
+from .designs import DesignKind, DesignSpec, build_design, generate_doe
 from .hypotheses import AnalysisPlan, Hypothesis, OutcomeSpec
 from .recipes import (
     AgentArchitectureComparisonConfig,
@@ -43,7 +43,7 @@ from .reporting import (
     render_significance_brief,
     write_markdown_report,
 )
-from .runners import agent_result, resume_study, run_study
+from .runners import ConditionRunner, RunOutput, agent_result, resume_study, run_study
 from .schemas import RunBudget, SeedPolicy
 from .study import Block, RunResult, RunSpec, Study, validate_study
 
@@ -60,7 +60,10 @@ __all__ = [
     "Block",
     "ComparisonStudyConfig",
     "Condition",
+    "ConditionRunner",
     "Constraint",
+    "DesignKind",
+    "DesignSpec",
     "DiversityAndExplorationConfig",
     "Factor",
     "FactorKind",
@@ -74,6 +77,7 @@ __all__ = [
     "PromptFramingConfig",
     "RecipeStudyConfig",
     "RunBudget",
+    "RunOutput",
     "RunResult",
     "RunSpec",
     "SeedPolicy",

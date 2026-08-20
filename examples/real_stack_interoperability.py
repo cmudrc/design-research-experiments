@@ -1,4 +1,4 @@
-"""Real-stack interoperability example.
+r"""Real-stack interoperability example.
 
 ## Introduction
 Run one packaged problem from `design-research-problems` through a public
@@ -11,8 +11,8 @@ the source-checkout run command:
 
 .. code-block:: bash
 
-   python -m pip install "design-research-problems==0.4.0" \\
-       "design-research-agents==0.6.0" \\
+   python -m pip install "design-research-problems==0.4.0" \
+       "design-research-agents==0.6.0" \
        "design-research-analysis==0.3.1"
 
 1. Import those installed sibling libraries through their package-level APIs.

@@ -6,7 +6,7 @@ Package Install
 
 .. code-block:: bash
 
-   pip install design-research-experiments
+   python -m pip install design-research-experiments
 
 Editable Install
 ----------------
@@ -18,7 +18,7 @@ Editable Install
    python -m venv .venv
    source .venv/bin/activate
    python -m pip install --upgrade pip
-   pip install -e ".[dev]"
+   python -m pip install -e ".[dev]"
 
 Maintainer Shortcut
 -------------------
@@ -30,12 +30,15 @@ Maintainer Shortcut
 Notes
 -----
 
- The experiments package keeps runtime dependencies deliberately small and
- delegates optional sibling interoperability to
- ``design_research_problems.integration``,
- ``design_research_agents.integration``, and the top-level
- ``design_research_analysis`` artifact API. The package itself remains the
- orchestration surface; there is intentionally no separate
- ``design_research_experiments.integration`` module. See
- :doc:`dependencies_and_extras` for development extras and release-check
- guidance.
+The experiments package keeps runtime dependencies deliberately small. User
+code that composes the sibling packages directly should use
+``design_research_problems.integration``, the stable
+``design_research_agents.study`` facade, and the top-level
+``design_research_analysis`` artifact API. Internally, its adapters consume
+``design_research_problems.integration`` and
+``design_research_agents.integration``; the latter remains a compatibility
+seam, not the recommended authoring API. The package itself remains
+the orchestration surface; there is intentionally no separate
+``design_research_experiments.integration`` module. See
+:doc:`dependencies_and_extras` for DOE and development extras plus
+release-check guidance.

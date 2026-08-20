@@ -3,9 +3,10 @@
 ## Purpose
 
 This repository is a Python 3.12+ framework for hypothesis-first experiment
-definition and orchestration in the cmudrc design research ecosystem. Keep
-changes focused, keep study schemas explicit, and preserve deterministic
-materialization and run-artifact contracts.
+definition and orchestration in the
+CMU Design Research Collective design-research ecosystem. Keep changes focused,
+keep study schemas explicit, and preserve deterministic materialization and
+run-artifact contracts.
 
 ## Setup
 
@@ -28,9 +29,10 @@ merging.
   - `make coverage` when changing tested behavior
 - If docs changed:
   - `make docs-check`
-  - `make docs`
+  - `make docs-build`
 - If the example changed:
-  - `make run-example`
+  - `make run-examples`
+  - `make examples-coverage`
 - Pre-merge baseline:
   - `make ci`
 - Pre-publish baseline:

@@ -1,8 +1,8 @@
 Artifact Contract
 =================
 
-``design-research-experiments`` owns the canonical artifact contract that the
-rest of the library family reads and validates.
+``design-research-experiments`` owns the canonical artifact contract consumed
+and validated by downstream tools, especially ``design-research-analysis``.
 
 Treat this page as the stable public handoff surface for study outputs. The
 guarantees below describe what downstream tools may safely build on. Internal
@@ -14,6 +14,8 @@ Versioning
 
 The canonical artifact set is versioned explicitly:
 
+- The current artifact schema version is ``0.2.0``. This is distinct from the
+  Python package version.
 - ``manifest.json`` is the version authority for the exported artifact set.
 - ``study.yaml`` carries its own ``schema_version`` field so a serialized study
   stays self-describing even before any runs complete.
@@ -77,8 +79,8 @@ Public File Guarantees
      - This is the version authority for the directory-level handoff.
    * - ``conditions.csv``
      - Record one row per materialized condition.
-     - ``study_id``, ``condition_id``, ``admissible``, ``constraint_messages``, ``assignment_meta_json``
-     - Use this when rejoining factor assignments and admissibility explanations.
+     - ``study_id``, ``condition_id``, ``admissible``, ``constraint_messages``, ``assignment_meta_json``; one flat column per factor; ``block_<name>`` per block assignment
+     - Factor columns carry the materialized assignments. ``assignment_meta_json`` carries condition metadata, not the factor values.
    * - ``runs.csv``
      - Record one row per executed run and its summary metadata.
      - ``study_id``, ``condition_id``, ``run_id``, ``problem_id``, ``problem_family``, ``agent_id``, ``agent_kind``, ``pattern_name``, ``model_name``, ``seed``, ``replicate``, ``status``, ``start_time``, ``end_time``, ``latency_s``, ``input_tokens``, ``output_tokens``, ``cost_usd``, ``primary_outcome``, ``trace_path``, ``manifest_path``
@@ -86,7 +88,7 @@ Public File Guarantees
    * - ``events.csv``
      - Record normalized event-level observations emitted during runs.
      - ``timestamp``, ``record_id``, ``text``, ``session_id``, ``actor_id``, ``event_type``, ``meta_json``
-     - This is the first-class downstream input for ``design-research-analysis`` validation and workflow execution.
+     - This is the first-class downstream input for ``design-research-analysis`` validation and workflow execution. Artifact-first joins additionally need ``run_id`` or a ``session_id`` equal to the corresponding ``runs.csv`` ``run_id``.
    * - ``evaluations.csv``
      - Record evaluator outputs keyed to runs.
      - ``run_id``, ``evaluator_id``, ``metric_name``, ``metric_value``, ``metric_unit``, ``aggregation_level``, ``notes_json``
@@ -107,7 +109,8 @@ These required columns always appear in the canonical CSV headers.
 
 ``conditions.csv``
    ``study_id``, ``condition_id``, ``admissible``, ``constraint_messages``,
-   ``assignment_meta_json``
+   ``assignment_meta_json``, followed by one column per factor assignment and
+   ``block_<name>`` columns for block assignments
 
 ``runs.csv``
    ``study_id``, ``condition_id``, ``run_id``, ``problem_id``,
@@ -123,6 +126,24 @@ These required columns always appear in the canonical CSV headers.
 ``evaluations.csv``
    ``run_id``, ``evaluator_id``, ``metric_name``, ``metric_value``,
    ``metric_unit``, ``aggregation_level``, ``notes_json``
+
+Event-to-run Join Precondition
+------------------------------
+
+The minimum event header contract above intentionally remains compatible with
+schema ``0.2.0``. Directory-first analysis helpers must still be able to map
+each event to a row in ``runs.csv``. They resolve that relationship from a
+non-empty ``run_id`` when present, then fall back to ``session_id`` and require
+that value to equal ``runs.csv.run_id``.
+
+The built-in agent execution adapter populates ``run_id`` and defaults
+``session_id`` to the run identifier. The exporter does not, however, guarantee
+``run_id`` for arbitrary observations supplied directly by callers, and a
+caller may provide a different session identifier. Producers of such
+observations must therefore set ``run_id`` explicitly or preserve the fallback
+relationship. A future artifact-schema revision can make ``run_id`` a required
+event column; doing so under ``0.2.0`` would overstate the current exporter
+contract.
 
 Validation
 ----------

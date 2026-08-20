@@ -6,7 +6,7 @@ Core Install
 
 .. code-block:: bash
 
-   pip install design-research-experiments
+   python -m pip install design-research-experiments
 
 Editable contributor setup:
 
@@ -17,7 +17,7 @@ Editable contributor setup:
    python -m venv .venv
    source .venv/bin/activate
    python -m pip install --upgrade pip
-   pip install -e ".[dev]"
+   python -m pip install -e ".[dev]"
 
 Or use:
 
@@ -37,6 +37,8 @@ Extras Matrix
      - Purpose
    * - ``dev``
      - Contributor tooling and documentation/test gates
+   * - ``doe``
+     - Optional SciPy/QMC and pyDOE3 design-of-experiments backends
 
 This package intentionally keeps runtime dependencies narrow because it sits at
 methodological orchestration level and integrates sibling libraries through
@@ -44,9 +46,18 @@ adapters. In most projects, richer capability profiles are selected in
 ``design-research-agents``, ``design-research-problems``, and
 ``design-research-analysis`` rather than in this package itself.
 
+The base install includes deterministic stdlib implementations for the DOE
+paths used by the bundled examples. Install ``doe`` only when selecting the
+SciPy/QMC Latin-hypercube backend or the pyDOE3 fractional-factorial backend:
+
+.. code-block:: bash
+
+   python -m pip install "design-research-experiments[doe]"
+
 Recommended install profiles:
 
 - study design and orchestration only: base install
-- local development and validation: ``pip install -e ".[dev]"``
+- optional SciPy/QMC or pyDOE3 backends: ``python -m pip install "design-research-experiments[doe]"``
+- local development and validation: ``python -m pip install -e ".[dev]"``
 
 Release packaging validation is exposed via ``make release-check``.

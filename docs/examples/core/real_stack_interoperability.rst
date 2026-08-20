@@ -13,7 +13,16 @@ contract with `design-research-analysis`'s artifact-first helpers.
 Technical Implementation
 ------------------------
 
-1. Import the installed sibling libraries through their package-level APIs.
+Install the exact sibling versions from the tested package family before using
+the source-checkout run command:
+
+.. code-block:: bash
+
+   python -m pip install "design-research-problems==0.4.0" \
+       "design-research-agents==0.6.0" \
+       "design-research-analysis==0.3.1"
+
+1. Import those installed sibling libraries through their package-level APIs.
 2. Execute a one-run study that uses a packaged optimization problem together
    with `SeededRandomBaselineAgent`.
 3. Export canonical artifacts and validate the event table through the analysis
@@ -21,7 +30,7 @@ Technical Implementation
 
 .. literalinclude:: ../../../examples/real_stack_interoperability.py
    :language: python
-   :lines: 20-
+   :lines: 29-
    :linenos:
 
 Expected Results

@@ -29,12 +29,13 @@ evaluations) for downstream analysis. Treat the output directory as the stable
 handoff unit and use :doc:`artifact_contract` when another repo or external
 tool is going to build against those files.
 
-5. Connect to the next library
+5. Compose the ecosystem seams
 ------------------------------
 
-Use ``design-research-agents`` for participant behavior, use
-``design-research-problems`` for task definitions, and analyze outputs with
-``design-research-analysis``.
+Use top-level ``design_research_agents`` APIs to define participant behavior
+and the stable ``design_research_agents.study`` facade for study-facing
+execution and normalization. Use ``design_research_problems`` for task
+definitions, then analyze exported outputs with ``design_research_analysis``.
 
 Why This Workflow Is Different
 ------------------------------

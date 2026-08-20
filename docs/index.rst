@@ -11,10 +11,10 @@ blocking, admissible conditions, replications, and artifact flows. It
 coordinates how agents, problems, and downstream analysis are connected in a
 controlled experimental pipeline.
 
-This library is the methodological control layer of the ecosystem. It is not
-just another execution utility. It encodes experimental method in software and
-is where design choices about rigor, admissibility, and reproducibility are
-made.
+This library is the methodological control layer of the
+CMU Design Research Collective design-research ecosystem. It is not just
+another execution utility. It encodes experimental method in software and is where design
+choices about rigor, admissibility, and reproducibility are made.
 
 .. container:: drc-home-badges
 
@@ -65,10 +65,15 @@ Highlights
 - Artifact contracts that connect runs, events, and evaluation outputs
 - Reproducible condition materialization and execution helpers
 - Runnable examples and recipes for study-definition workflows
-- Orchestration adapters that delegate sibling-package seams to
+- Documented composition seams for user code:
   ``design_research_problems.integration``,
-  ``design_research_agents.integration``, and the top-level
+  the stable ``design_research_agents.study`` facade, and the top-level
   ``design_research_analysis`` artifact API
+
+The internal package adapters consume ``design_research_problems.integration``
+and ``design_research_agents.integration``. The latter is a compatibility seam,
+not the recommended authoring API; new user code should use
+``design_research_agents.study``.
 
 Typical Workflow
 ----------------
@@ -95,8 +100,9 @@ Guides
 Learn the study-modeling concepts, setup flow, and orchestration patterns that
 shape a stable experimental pipeline.
 
-- :doc:`quickstart`
+- :doc:`guides`
 - :doc:`installation`
+- :doc:`quickstart`
 - :doc:`concepts`
 - :doc:`typical_workflow`
 - :doc:`study_structure_example`
@@ -124,33 +130,51 @@ development extras.
 - :doc:`dependencies_and_extras`
 - :doc:`automation_baseline`
 
-Integration With The Ecosystem
-------------------------------
+Architecture: Two Complementary Views
+-------------------------------------
 
-The Design Research Collective maintains a modular ecosystem of libraries for
-studying human and AI design behavior.
+**Control topology:** Problems and Agents are peer study inputs. Experiments
+owns study design and coordinates their execution, then defines the artifact
+handoff to Analysis.
 
-- **design-research-agents** implements AI participants, workflows, and tool-using reasoning patterns.
-- **design-research-problems** provides benchmark design tasks, prompts, grammars, and evaluators.
-- **design-research-analysis** analyzes the traces, event tables, and outcomes generated during studies.
-- **design-research-experiments** sits above the stack as the study-design and orchestration layer, defining hypotheses, factors, conditions, replications, and artifact flows across agents, problems, and analysis.
+**Runtime and data flow:** Problems + Agents → Experiments artifact set →
+Analysis → evidence that can refine the next study protocol.
 
-Together these libraries support end-to-end design research pipelines, from
-study design through execution and interpretation.
+These are two views of the same package family, not an installation order. The
+umbrella routes imports and pins a tested combination; implementation stays
+with the package that owns each behavior. See the umbrella
+`compatibility and package status <https://cmudrc.github.io/design-research/compatibility.html>`_
+for the tested family combination.
 
 .. container:: drc-home-ecosystem
 
    .. image:: _static/ecosystem-platform.svg
-      :alt: Ecosystem diagram showing experiments above agents, problems, and analysis.
+      :alt: Two-view diagram showing the control topology and runtime data flow across Problems, Agents, Experiments, and Analysis.
       :class: dark-light drc-ecosystem-figure
       :width: 100%
       :align: center
 
+Ecosystem Packages
+------------------
+
+- **Problems** — tasks, prompts, grammars, benchmarks, and evaluators:
+  `documentation <https://cmudrc.github.io/design-research-problems/>`__
+- **Agents** — AI participants, workflows, tools, and traceable reasoning:
+  `documentation <https://cmudrc.github.io/design-research-agents/>`__
+- **Experiments** — hypotheses, factors, conditions, replications, execution,
+  and artifact export: :doc:`guides`
+- **Analysis** — validation, transformation, statistics, and visualization of
+  study artifacts:
+  `documentation <https://cmudrc.github.io/design-research-analysis/>`__
+- **Umbrella** — routed imports, learning paths, and tested compatibility:
+  `documentation <https://cmudrc.github.io/design-research/>`__
+
 Start Here
 ----------
 
-- :doc:`quickstart`
+- :doc:`guides`
 - :doc:`installation`
+- :doc:`quickstart`
 - :doc:`concepts`
 - :doc:`typical_workflow`
 - :doc:`examples/index`
@@ -165,13 +189,7 @@ Start Here
    :caption: Guides
    :hidden:
 
-   quickstart
-   installation
-   concepts
-   typical_workflow
-   study_structure_example
-   examples_and_recipes
-   artifact_contract
+   guides
 
 .. toctree::
    :maxdepth: 2
@@ -185,12 +203,7 @@ Start Here
    :caption: Reference
    :hidden:
 
-   api
-   cli_reference
    reference/index
-   dependencies_and_extras
-   vscode_start
-   automation_baseline
 
 .. toctree::
    :maxdepth: 1

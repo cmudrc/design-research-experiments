@@ -7,8 +7,10 @@
 [![PyPI Version](https://img.shields.io/pypi/v/design-research-experiments.svg)](https://pypi.org/project/design-research-experiments/)
 [![Python Versions](https://img.shields.io/pypi/pyversions/design-research-experiments.svg)](https://pypi.org/project/design-research-experiments/)
 
-`design-research-experiments` is the hypothesis-first study-definition and
-experiment-orchestration layer in the cmudrc design research ecosystem.
+`design-research-experiments` is the study-design and orchestration layer
+in the CMU Design Research Collective design-research ecosystem. It makes
+hypotheses, factors, conditions, replications, and artifact flows explicit
+before execution.
 
 It composes sibling libraries rather than reimplementing them:
 
@@ -38,12 +40,18 @@ This package centers on reproducible experiment structure and execution:
 - canonical artifact exports (`study.yaml`, `manifest.json`, `conditions.csv`,
   `runs.csv`, `events.csv`, `evaluations.csv`, and machine-readable hypothesis/plan files)
 - documented artifact contracts that downstream analysis can ingest directory-first
-- thin orchestration adapters that delegate sibling-package interoperability to
-  `design_research_problems.integration`, `design_research_agents.integration`,
-  and the top-level `design_research_analysis` artifact API
+- documented composition seams for user code:
+  `design_research_problems.integration`, the stable
+  `design_research_agents.study` facade, and the top-level
+  `design_research_analysis` artifact API
 
 `design-research-experiments` itself is the orchestration surface. There is
 intentionally no separate `design_research_experiments.integration` module.
+Internally, the package adapters consume
+`design_research_problems.integration` and
+`design_research_agents.integration`; the latter is a compatibility seam, not
+the recommended authoring API. New user code should use
+`design_research_agents.study`.
 
 ## Quickstart
 
@@ -53,6 +61,27 @@ For a VS Code path that starts from PyPI and then shows the repository example
 workflow, see
 [VS Code Start](docs/vscode_start.rst).
 
+Install the base package from PyPI:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install design-research-experiments
+```
+
+The base install is enough to define, validate, and materialize a study:
+
+```python
+from design_research_experiments import build_design, build_prompt_framing_study
+
+study = build_prompt_framing_study()
+conditions = build_design(study)
+print(study.study_id, len(conditions))
+```
+
+For contributor workflows from a source checkout:
+
 ```bash
 python -m venv .venv
 source .venv/bin/activate
@@ -60,7 +89,7 @@ make dev
 make test
 ```
 
-Run a basic example:
+Run the repository's basic example:
 
 ```bash
 make run-example
@@ -99,15 +128,19 @@ See the [published documentation](https://cmudrc.github.io/design-research-exper
 for guides, the [artifact contract](https://cmudrc.github.io/design-research-experiments/artifact_contract.html),
 and API reference.
 
+For whole-stack orientation and canonical cross-package examples, use the
+[`design-research` umbrella documentation](https://cmudrc.github.io/design-research/).
+
 Build docs locally with:
 
 ```bash
-make docs
+make docs-check
+make docs-build
 ```
 
 ## Public API
 
-Top-level exports are intentionally small:
+Selected primary entry points include:
 
 - `Study`, `Factor`, `Level`, `Constraint`, `Condition`, `Block`, `DesignSpec`, `DesignKind`
 - `RecipeStudyConfig`, `ComparisonStudyConfig`, and recipe-specific typed config classes

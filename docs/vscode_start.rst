@@ -94,13 +94,19 @@ Equivalent maintainer shortcut:
 
    make dev
 
-Run the deterministic example path from the integrated terminal:
+Run the base-install example path from the integrated terminal:
 
 .. code-block:: bash
 
    make run-example
-   make examples-test
    python examples/basic_usage.py
+
+Run the complete deterministic inventory and public-API coverage check with:
+
+.. code-block:: bash
+
+   make run-examples
+   make examples-coverage
 
 First Development Checks
 ------------------------
@@ -136,6 +142,6 @@ Troubleshooting
 - If Windows activation is blocked, switch the terminal profile to Command
   Prompt and run ``.\.venv\Scripts\activate.bat``.
 - If optional design-of-experiments backends are needed, install
-  ``pip install -e ".[doe]"`` inside the active environment.
+  ``python -m pip install -e ".[doe]"`` inside the active environment.
 - Avoid committing generated runtime output under ``artifacts/``,
   ``docs/_build/``, or local virtual environment directories.

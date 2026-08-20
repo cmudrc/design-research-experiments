@@ -19,7 +19,7 @@ from .study import Study
 
 
 class DesignKind(StrEnum):
-    """Supported DOE generators for v0.1."""
+    """Supported DOE generators."""
 
     FULL_FACTORIAL = "full_factorial"
     CONSTRAINED_FACTORIAL = "constrained_factorial"

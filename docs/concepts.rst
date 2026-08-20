@@ -73,9 +73,10 @@ The public compatibility promise lives at the file-contract level. Internal
 checkpoint or cache details are intentionally outside that boundary unless they
 are promoted into :doc:`artifact_contract`.
 
-The "Hat" Role
---------------
+Control-Layer Role
+------------------
 
-This library sits above agents, problems, and analysis because it defines the
-logic connecting them. It is the place where methodological rigor enters the
-software stack.
+Problems and Agents are peer study inputs. Experiments owns study design,
+coordinates their execution, and defines the artifact handoff to Analysis.
+This control topology describes responsibility, not a linear package ordering;
+it is where methodological rigor enters the software stack.

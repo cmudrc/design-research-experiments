@@ -28,3 +28,13 @@ Primary modules and responsibilities:
 - ``design_research_experiments.adapters``: thin orchestration glue that delegates
   sibling-package interoperability to owner-owned ``integration`` modules.
 - ``design_research_experiments.io``: YAML/JSON/CSV/SQLite persistence helpers.
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+
+   ../api
+   ../cli_reference
+   ../dependencies_and_extras
+   ../vscode_start
+   ../automation_baseline

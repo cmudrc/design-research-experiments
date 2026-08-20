@@ -9,7 +9,7 @@ This example shows the shortest meaningful path through
 
 .. code-block:: bash
 
-   pip install design-research-experiments
+   python -m pip install design-research-experiments
 
 Or install from source:
 
@@ -20,7 +20,7 @@ Or install from source:
    python -m venv .venv
    source .venv/bin/activate
    python -m pip install --upgrade pip
-   pip install -e .
+   python -m pip install .
 
 2. Minimal Runnable Example
 ---------------------------

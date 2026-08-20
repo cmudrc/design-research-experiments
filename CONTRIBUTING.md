@@ -38,8 +38,21 @@ make docstrings-check
 make test
 make coverage
 make docs-check
-make docs
+make docs-build
+make run-examples
+make examples-coverage
 ```
+
+The canonical automated pre-merge baseline is:
+
+```bash
+make ci
+```
+
+``make ci`` includes ``make docs-check`` but not the strict HTML build. Run
+``make docs-build`` for documentation changes and ``make docs-linkcheck`` when
+public links change. Use the remaining individual targets above while
+iterating or when isolating a failure.
 
 ## Quality Gates
 

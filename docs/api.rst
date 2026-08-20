@@ -3,6 +3,7 @@ API
 
 The top-level package exports a curated public API suitable for notebook/script use:
 
+- ``__version__``
 - ``Study``
 - ``Factor``
 - ``FactorKind``
@@ -39,6 +40,7 @@ The top-level package exports a curated public API suitable for notebook/script 
 - ``optimization_bundle``
 - ``grammar_problem_bundle``
 - ``human_vs_agent_bundle``
+- ``resolve_problem``
 - ``build_univariate_comparison_study``
 - ``build_bivariate_comparison_study``
 - ``build_strategy_comparison_study``

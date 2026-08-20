@@ -6,7 +6,16 @@ Run one packaged problem from `design-research-problems` through a public
 contract with `design-research-analysis`'s artifact-first helpers.
 
 ## Technical Implementation
-1. Import the installed sibling libraries through their package-level APIs.
+Install the exact sibling versions from the tested package family before using
+the source-checkout run command:
+
+.. code-block:: bash
+
+   python -m pip install "design-research-problems==0.4.0" \\
+       "design-research-agents==0.6.0" \\
+       "design-research-analysis==0.3.1"
+
+1. Import those installed sibling libraries through their package-level APIs.
 2. Execute a one-run study that uses a packaged optimization problem together
    with `SeededRandomBaselineAgent`.
 3. Export canonical artifacts and validate the event table through the analysis
@@ -95,7 +104,7 @@ def main() -> None:
     run_result = run_results[0]
 
     print("Problem ID:", packaged_problem.metadata.problem_id)
-    print("Problem family:", packaged_problem.metadata.kind.value)
+    print("Problem kind:", packaged_problem.metadata.kind.value)
     print("Problem package:", problems_module.__name__)
     print("Agent package:", agents_module.__name__)
     print("Agent:", study.agent_specs[0])

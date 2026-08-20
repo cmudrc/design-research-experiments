@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "design-research-experiments"
 version = "0.3.0"
-description = "Study-definition and orchestration layer for the cmudrc design research ecosystem"
+description = "Study design and orchestration for the CMU Design Research Collective ecosystem"
 readme = "README.md"
 requires-python = ">=3.12"
 license = "MIT"

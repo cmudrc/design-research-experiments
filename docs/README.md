@@ -5,6 +5,11 @@
 - `make docs-check`
 - `make docs-build`
 
+`make docs-check` verifies generated example pages, internal navigation,
+top-level `__all__` coverage in `docs/api.rst`, and the checked-in example
+inventory in `examples/README.md`. `make docs-build` performs the strict Sphinx
+HTML build after regenerating example pages.
+
 ## Example Page Generation
 
 Example pages are generated from runnable scripts via `scripts/generate_example_docs.py`.
@@ -32,7 +37,9 @@ Use `:doc:` for internal links and link to sibling ecosystem docs when describin
 
 ## Branding
 
-- The ecosystem figure is the source of truth for package colors.
+- The umbrella repository owns the canonical ecosystem figure, package colors,
+  and `ecosystem-topology-v1` framing. Keep this repository's vendored SVG
+  byte-identical to that source.
 - This repo's canonical docs brand color is `#57B7BA`.
 - Keep docs CSS tokens, `drc-light.png`, `drc-dark.png`, `favicon-light.ico`, `favicon-dark.ico`, and fallback `favicon.ico` aligned when updating docs styling.
 
@@ -44,3 +51,6 @@ When public exports change, update:
 - concepts/workflow pages
 - quickstart/examples snippets
 - `docs/automation_baseline.rst` if workflow ownership changes
+
+The docs consistency check reads the package's literal `__all__` declaration,
+so a newly exported symbol must be listed in `docs/api.rst` before merge.

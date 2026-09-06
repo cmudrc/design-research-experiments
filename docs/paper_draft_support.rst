@@ -2,12 +2,11 @@ Paper-Draft Support
 ===================
 
 ``design-research-experiments`` can assemble factual, evidence-linked writing
-support without asking a language model to invent prose or references. This is
-an explicit halfway point between raw study artifacts and a manuscript.
+support and a compilable paper draft without asking a language model to invent
+prose or references. Both operations are explicit and require author review.
 
 Nothing in ``run_study`` writes paper-draft files. ``collect_paper_support`` is
-side-effect free, and ``export_paper_support`` must be called explicitly before
-the following directory exists:
+side-effect free. ``export_paper_support`` retains the lower-level scaffold:
 
 .. code-block:: text
 
@@ -107,10 +106,62 @@ Explicit Export
        output_dir="artifacts/my-study",
    )
 
-Collection can begin from a live ``Study``, ``study.yaml``, ``study.json``, or a
-portable completed study directory. Export refuses to overwrite an existing
-paper-draft directory unless ``overwrite=True`` is stated explicitly.
+The complete paper-draft assembler is a separate explicit call:
 
-This layer does not yet create ``main.tex`` or claim that a planned analysis
-ran. Those belong to later slices built on executed analysis records and this
-validated contribution set.
+.. code-block:: python
+
+   paths = drex.export_paper_draft(
+       "artifacts/my-study/manifest.json",
+       component_packets=(problem_packet, agent_packet, analysis_packet),
+       require_complete=True,
+   )
+
+It creates:
+
+.. code-block:: text
+
+   paper-draft/
+     main.tex
+     paper_draft.md
+     references.bib
+     paper_draft_manifest.json
+     README.md
+     sections/
+       introduction.tex
+       background.tex
+       methods.tex
+       results.tex
+       discussion.tex
+     tables/
+     figures/
+
+The first page is marked exactly ``Generated paper draft. Author review
+required.`` The manifest declares ``document_status`` as ``paper-draft`` and
+records completeness, run accounting, contribution provenance, evidence
+references, citations, figures, tables, and unresolved reporting gaps.
+
+The Introduction carries the study title, description, rationale, hypotheses,
+and explicit author TODOs rather than inventing novelty or a literature gap.
+Background preserves sibling contributions as modular blocks. Methods phrases
+configured and observed facts differently. Results includes only executed
+analysis contributions and retained assets. Discussion provides factual recaps
+and author TODOs for interpretation, implications, prior work, and future work.
+
+Only curated BibTeX ``raw_text`` is written or cited. Missing BibTeX remains a
+visible TODO, so a partial draft still compiles. Figure and table paths must be
+relative to the study artifact root; absolute paths, traversal, and symlinks are
+rejected. Missing safe paths become evidence-critical TODOs.
+
+Collection can begin from a live ``Study``, ``study.yaml``, ``study.json``, a
+portable completed study directory, or its ``manifest.json``. Fresh processes
+also load an optional ``component_metadata.json`` containing one packet, a
+packet array, or ``{"packets": [...]}``. Export refuses to overwrite an
+existing paper-draft directory unless ``overwrite=True`` is stated explicitly.
+
+``require_complete=True`` writes the draft and then raises
+``PaperDraftIncompleteError`` if evidence-critical reporting gaps remain. The
+CLI mirrors this behavior with a nonzero exit status:
+
+.. code-block:: bash
+
+   drexp draft-paper artifacts/my-study --require-complete

@@ -7,7 +7,7 @@ Runnable examples for `design-research-experiments`.
 - `basic_usage.py`: construct and serialize a minimal `Study`.
 - `mechanical_design_recipe_portfolio.py`: inspect the recipe portfolio through a mechanical-design study scenario.
 - `monty_hall_simulation.py`: simulate 100 random Monty Hall games per strategy condition.
-- `paper_support.py`: explicitly export evidence-grounded paper-draft support from an offline run.
+- `paper_support.py`: explicitly export evidence-grounded support and a compilable paper draft from an offline run.
 - `public_api_walkthrough.py`: validate a study and materialize conditions.
 - `real_stack_interoperability.py`: exercise the installed sibling-package handoff when the full stack is available.
 - `doe_capabilities.py`: generate full/LHS/fractional DOE tables with diagnostics.

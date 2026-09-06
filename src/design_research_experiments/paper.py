@@ -495,6 +495,9 @@ def _resolve_study_and_output(
     if source_path.is_dir():
         study_path = source_path / "study.yaml"
         return Study.from_yaml(study_path), Path(output_dir or source_path)
+    if source_path.name == "manifest.json":
+        artifact_root = source_path.parent
+        return Study.from_yaml(artifact_root / "study.yaml"), Path(output_dir or artifact_root)
     if source_path.suffix.lower() == ".json":
         return Study.from_json(source_path), Path(output_dir or source_path.parent)
     return Study.from_yaml(source_path), Path(output_dir or source_path.parent)

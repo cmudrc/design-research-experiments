@@ -35,8 +35,8 @@ This package centers on reproducible experiment structure and execution:
   repeated measures, latin square, custom matrices)
 - run orchestration with deterministic seeding, always-on per-run evidence,
   optional checkpointing, resume support, and interactive `tqdm` progress
-- explicit, disabled-by-default paper-support aggregation with provenance,
-  deduplicated curated references, and unresolved reporting gaps
+- explicit, disabled-by-default paper-support aggregation and paper-draft
+  assembly with provenance, curated references, visible TODOs, and author-review boundaries
 - standalone condition callbacks for simulations that do not require synthetic
   problem or agent bindings
 - canonical artifact exports (`study.yaml`, `manifest.json`, `conditions.csv`,
@@ -112,6 +112,7 @@ drexp generate-doe --kind lhs --factors-json '{"x": [0, 1], "y": [10, 20]}' --n-
 drexp run-study path/to/study.yaml
 drexp resume-study path/to/study.yaml
 drexp export-analysis path/to/study.yaml
+drexp draft-paper path/to/output_dir --require-complete
 drexp bundle-results path/to/output_dir
 ```
 
@@ -152,7 +153,8 @@ Selected primary entry points include:
 - `build_univariate_comparison_study`, `build_bivariate_comparison_study`,
   `build_strategy_comparison_study`, and other recipe builders
 - `run_study`, `resume_study`, `load_run_evidence_records`
-- `collect_paper_support`, `export_paper_support`
+- `collect_paper_support`, `export_paper_support`, `export_paper_draft`,
+  `PaperDraftIncompleteError`
 - `export_analysis_tables`, `validate_study`
 
 ## Contributing

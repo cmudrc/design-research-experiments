@@ -6,17 +6,17 @@ Source: ``examples/paper_support.py``
 Introduction
 ------------
 
-Run a tiny offline study, aggregate one component-owned citation and background
-blurb with the durable run evidence, then explicitly export paper-draft support.
-No paper files are written by ``run_study`` or ``collect_paper_support``.
+Run a tiny offline study, aggregate component-owned contributions with durable
+run evidence, then explicitly export both the support contract and a compilable
+paper draft. No paper files are written by ``run_study`` or collection alone.
 
 Technical Implementation
 ------------------------
 
 The example passes a versioned JSON-compatible component packet to
-``collect_paper_support``. The packet carries one curated BibTeX record and
-evidence-linked contributions. ``export_paper_support`` is called separately
-with explicit overwrite permission.
+``collect_paper_support``. The same packet and artifact root are passed to
+``export_paper_draft``, which is called separately with explicit overwrite and
+completeness requirements. Strict failures expose ``PaperDraftIncompleteError``.
 
 .. literalinclude:: ../../../examples/paper_support.py
    :language: python
@@ -32,6 +32,6 @@ Expected Results
 
    PYTHONPATH=src python examples/paper_support.py
 
-The script records two successful run-evidence directories and writes
-``paper_support.json``, ``paper_outline.md``, ``references.json``, and
-``references.bib`` beneath ``artifacts/example-paper-support/artifacts/paper-draft``.
+The script records two successful run-evidence directories, writes the support
+files, and assembles ``main.tex``, Markdown, sections, references, and a draft
+manifest beneath ``artifacts/example-paper-support/paper-draft``.

@@ -4,13 +4,15 @@ from __future__ import annotations
 
 import argparse
 import json
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path
+from typing import Any, cast
 
 from .adapters.analysis import export_analysis_tables
 from .artifacts import bundle_results, load_checkpointed_run_results
 from .designs import build_design, generate_doe
 from .io import csv_io
+from .paper_draft import PaperDraftIncompleteError, export_paper_draft
 from .runners import resume_study, run_study
 from .study import Study, load_study, validate_study
 
@@ -146,6 +148,42 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Optional target tar.gz path",
     )
     bundle_parser.set_defaults(handler=_handle_bundle_results)
+
+    draft_parser = subparsers.add_parser(
+        "draft-paper",
+        help="Explicitly assemble an evidence-bounded paper draft",
+    )
+    draft_parser.add_argument(
+        "source",
+        metavar="OUTPUT_DIR",
+        type=Path,
+        help="Study artifact directory or its manifest.json",
+    )
+    draft_parser.add_argument(
+        "--output-dir",
+        dest="draft_output_dir",
+        type=Path,
+        default=None,
+        help="Optional paper-draft destination (defaults beneath the artifact directory)",
+    )
+    draft_parser.add_argument(
+        "--component-packet",
+        type=Path,
+        action="append",
+        default=[],
+        help="JSON packet file; repeat for multiple component libraries",
+    )
+    draft_parser.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="Replace an existing non-empty paper-draft directory",
+    )
+    draft_parser.add_argument(
+        "--require-complete",
+        action="store_true",
+        help="Write the draft, then return nonzero when evidence-critical TODOs remain",
+    )
+    draft_parser.set_defaults(handler=_handle_draft_paper)
 
     return parser
 
@@ -288,6 +326,50 @@ def _handle_bundle_results(args: argparse.Namespace) -> int:
     bundle_path = bundle_results(args.output_dir, args.bundle_path)
     print(f"Bundled study output to {bundle_path}")
     return 0
+
+
+def _handle_draft_paper(args: argparse.Namespace) -> int:
+    """Handle the explicit ``draft-paper`` command."""
+    packets = tuple(
+        packet for path in args.component_packet for packet in _load_component_packet_file(path)
+    )
+    try:
+        paths = export_paper_draft(
+            args.source,
+            output_dir=args.draft_output_dir,
+            component_packets=packets,
+            overwrite=bool(args.overwrite),
+            require_complete=bool(args.require_complete),
+        )
+    except PaperDraftIncompleteError as exc:
+        _print_draft_paths(exc.paths)
+        print(str(exc))
+        return 2
+    _print_draft_paths(paths)
+    return 0
+
+
+def _load_component_packet_file(path: Path) -> tuple[Mapping[str, Any], ...]:
+    """Load one packet, packet array, or packets wrapper for the CLI."""
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if isinstance(payload, Mapping) and "packets" in payload:
+        payload = payload["packets"]
+    if isinstance(payload, Mapping):
+        return (cast(Mapping[str, Any], payload),)
+    if (
+        isinstance(payload, Sequence)
+        and not isinstance(payload, (str, bytes))
+        and all(isinstance(item, Mapping) for item in payload)
+    ):
+        return cast(tuple[Mapping[str, Any], ...], tuple(payload))
+    raise SystemExit(f"{path} must contain a packet, packet array, or packets object.")
+
+
+def _print_draft_paths(paths: Mapping[str, Path]) -> None:
+    """Print deterministic paper-draft output paths."""
+    print("Generated paper draft. Author review required.")
+    for name, path in sorted(paths.items()):
+        print(f"- {name}: {path}")
 
 
 def _load_study(path: Path) -> Study:

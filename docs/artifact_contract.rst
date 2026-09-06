@@ -176,7 +176,34 @@ separately versioned paper-draft contract ``0.1.0`` and does not change canonica
 artifact schema ``0.2.0``.
 
 ``run_study`` and ``collect_paper_support`` never create paper-draft files.
-Calling ``export_paper_support`` writes:
+``export_paper_support`` retains its support-only contract. The separate,
+explicit ``export_paper_draft`` action writes a review artifact beneath the
+canonical study output without changing artifact schema ``0.2.0``:
+
+.. code-block:: text
+
+   paper-draft/
+     main.tex
+     paper_draft.md
+     references.bib
+     paper_draft_manifest.json
+     README.md
+     sections/
+       introduction.tex
+       background.tex
+       methods.tex
+       results.tex
+       discussion.tex
+     tables/
+     figures/
+
+The draft manifest uses its own ``paper_draft_version``, declares
+``document_status`` as ``paper-draft``, records source artifact schema and run
+accounting, and maps each block to contribution provenance and evidence
+references. Existing non-empty draft directories are never replaced without
+explicit overwrite permission.
+
+Calling the earlier ``export_paper_support`` helper writes:
 
 .. code-block:: text
 

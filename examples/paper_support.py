@@ -1,20 +1,20 @@
-"""Build an explicit, deterministic paper-support scaffold.
+"""Build explicit paper support and a review-required full paper draft.
 
 ## Introduction
-Run a tiny offline study, aggregate one component-owned citation and background
-blurb with the durable run evidence, then explicitly export paper-draft support.
-No paper files are written by ``run_study`` or ``collect_paper_support``.
+Run a tiny offline study, aggregate component-owned contributions with durable
+run evidence, then explicitly export both the support contract and a compilable
+paper draft. No paper files are written by ``run_study`` or collection alone.
 
 ## Technical Implementation
 The example passes a versioned JSON-compatible component packet to
-``collect_paper_support``. The packet carries one curated BibTeX record and
-evidence-linked contributions. ``export_paper_support`` is called separately
-with explicit overwrite permission.
+``collect_paper_support``. The same packet and artifact root are passed to
+``export_paper_draft``, which is called separately with explicit overwrite and
+completeness requirements. Strict failures expose ``PaperDraftIncompleteError``.
 
 ## Expected Results
-The script records two successful run-evidence directories and writes
-``paper_support.json``, ``paper_outline.md``, ``references.json``, and
-``references.bib`` beneath ``artifacts/example-paper-support/artifacts/paper-draft``.
+The script records two successful run-evidence directories, writes the support
+files, and assembles ``main.tex``, Markdown, sections, references, and a draft
+manifest beneath ``artifacts/example-paper-support/paper-draft``.
 """
 
 from __future__ import annotations
@@ -103,6 +103,16 @@ def main() -> None:
                 "citation_keys": ["example2026"],
                 "evidence_refs": ["study.yaml#/factors/0"],
             },
+            {
+                "contribution_id": "example:prompt-framing:result",
+                "section": "results",
+                "kind": "paragraph",
+                "text": "The retained difference-in-means analysis completed.",
+                "evidence_basis": "analyzed",
+                "citation_keys": [],
+                "evidence_refs": ["analysis/example-result.json"],
+                "metadata": {"hypothesis_ids": ["h1"]},
+            },
         ],
         "references": [
             {
@@ -114,10 +124,20 @@ def main() -> None:
         "reporting_gaps": [],
     }
     support = drex.collect_paper_support(study, component_packets=(component_packet,))
-    paths = drex.export_paper_support(support, output_dir=output_dir, overwrite=True)
+    support_paths = drex.export_paper_support(support, output_dir=output_dir, overwrite=True)
+    try:
+        paths = drex.export_paper_draft(
+            study,
+            component_packets=(component_packet,),
+            overwrite=True,
+            require_complete=True,
+        )
+    except drex.PaperDraftIncompleteError as exc:
+        paths = exc.paths
     print(f"Draft status: {support.draft_status}")
     print(f"Run accounting: {dict(support.run_accounting)}")
-    print(f"Paper outline: {paths['paper_outline.md']}")
+    print(f"Paper outline: {support_paths['paper_outline.md']}")
+    print(f"LaTeX draft: {paths['main.tex']}")
 
 
 if __name__ == "__main__":

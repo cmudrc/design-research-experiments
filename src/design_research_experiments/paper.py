@@ -360,7 +360,7 @@ def collect_paper_support(
         (_normalize_reference(reference), user_source) for reference in user_references
     )
 
-    run_accounting = _run_accounting(evidence)
+    run_accounting = _run_accounting(evidence, contributions=contributions)
     evidence_contribution = _evidence_contribution(
         study,
         evidence=evidence,
@@ -592,6 +592,13 @@ def _evidence_contribution(
     """Render the observed run-accounting sentence only when evidence exists."""
     if not evidence:
         return None
+    analysis_accounting = ""
+    if run_accounting["analyzed"] or run_accounting["excluded"]:
+        analysis_accounting = (
+            " Supplied analysis records identify "
+            f"{_count_phrase(run_accounting['analyzed'], 'analyzed run')} and "
+            f"{_count_phrase(run_accounting['excluded'], 'documented excluded run')}."
+        )
     return PaperContribution(
         contribution_id="experiments:observed-run-accounting",
         section=PaperSection.METHODS,
@@ -601,6 +608,7 @@ def _evidence_contribution(
             f"{_count_phrase(run_accounting['planned'], 'planned run')}: "
             f"{run_accounting['successful']} successful, {run_accounting['failed']} failed, "
             f"{run_accounting['skipped']} skipped, and {run_accounting['incomplete']} incomplete."
+            f"{analysis_accounting}"
         ),
         evidence_basis=EvidenceBasis.OBSERVED,
         source=source,
@@ -708,9 +716,14 @@ def _aggregate_reporting_gaps(
     return gaps
 
 
-def _run_accounting(evidence: Mapping[str, Mapping[str, Any]]) -> dict[str, int]:
-    """Summarize lifecycle facts from validated per-run evidence."""
+def _run_accounting(
+    evidence: Mapping[str, Mapping[str, Any]],
+    *,
+    contributions: Sequence[PaperContribution] = (),
+) -> dict[str, int]:
+    """Summarize lifecycle facts and distinct analysis-accounting run IDs."""
     statuses = Counter(str(record["status"]) for record in evidence.values())
+    analyzed_run_ids, excluded_run_ids = _analysis_run_ids(contributions)
     return {
         "planned": len(evidence),
         "attempted": sum(bool(record["attempted"]) for record in evidence.values()),
@@ -719,7 +732,33 @@ def _run_accounting(evidence: Mapping[str, Mapping[str, Any]]) -> dict[str, int]
         "failed": statuses["failed"],
         "skipped": statuses["skipped"],
         "incomplete": statuses["pending"] + statuses["running"],
+        "analyzed": len(analyzed_run_ids),
+        "excluded": len(excluded_run_ids),
     }
+
+
+def _analysis_run_ids(
+    contributions: Sequence[PaperContribution],
+) -> tuple[set[str], set[str]]:
+    """Collect distinct included and documented-exclusion IDs from analyzed blocks."""
+    analyzed: set[str] = set()
+    excluded: set[str] = set()
+    for contribution in contributions:
+        if contribution.evidence_basis != EvidenceBasis.ANALYZED:
+            continue
+        included_rows = contribution.metadata.get("included_run_ids", ())
+        if isinstance(included_rows, Sequence) and not isinstance(included_rows, (str, bytes)):
+            analyzed.update(str(run_id) for run_id in included_rows if str(run_id).strip())
+        exclusion_rows = contribution.metadata.get("exclusions", ())
+        if not isinstance(exclusion_rows, Sequence) or isinstance(exclusion_rows, (str, bytes)):
+            continue
+        for row in exclusion_rows:
+            if not isinstance(row, Mapping):
+                continue
+            run_id = str(row.get("run_id", "")).strip()
+            if run_id:
+                excluded.add(run_id)
+    return analyzed, excluded
 
 
 def _validate_evidence_study_ids(

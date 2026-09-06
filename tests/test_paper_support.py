@@ -64,6 +64,7 @@ def contribution(
     text: str = "Report the configured method.",
     evidence_basis: str = "configured",
     citation_keys: list[str] | None = None,
+    metadata: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Build one valid contribution payload."""
     return {
@@ -74,7 +75,7 @@ def contribution(
         "evidence_basis": evidence_basis,
         "citation_keys": citation_keys or [],
         "evidence_refs": ["component.json#/method"],
-        "metadata": {"curated": True},
+        "metadata": {"curated": True, **(metadata or {})},
     }
 
 
@@ -138,6 +139,10 @@ def test_collect_support_aggregates_evidence_components_and_citations(tmp_path: 
                 section="results",
                 text="The configured t-test completed against the retained observations.",
                 evidence_basis="analyzed",
+                metadata={
+                    "included_run_ids": ["run-included"],
+                    "exclusions": [{"run_id": "run-excluded", "reason": "Missing score."}],
+                },
             )
         ],
     )
@@ -158,6 +163,8 @@ def test_collect_support_aggregates_evidence_components_and_citations(tmp_path: 
         "failed": 1,
         "skipped": 0,
         "incomplete": 0,
+        "analyzed": 1,
+        "excluded": 1,
     }
     assert {item["evidence_basis"] for item in payload["contributions"]} >= {
         "configured",
@@ -170,6 +177,7 @@ def test_collect_support_aggregates_evidence_components_and_citations(tmp_path: 
         if item["contribution_id"] == "experiments:observed-run-accounting"
     )
     assert "1 successful, 1 failed" in observed["text"]
+    assert "1 analyzed run and 1 documented excluded run" in observed["text"]
     assert len(observed["evidence_refs"]) == 2
     assert len(payload["references"]) == 1
     assert payload["references"][0]["url"] == "https://example.test/foundation"
@@ -278,6 +286,8 @@ def test_portable_directory_can_be_aggregated_in_a_fresh_process(tmp_path: Path)
         "skipped": 0,
         "successful": 2,
         "terminal": 2,
+        "analyzed": 0,
+        "excluded": 0,
     }
 
     assert collect_paper_support(output_dir).run_accounting["successful"] == 2

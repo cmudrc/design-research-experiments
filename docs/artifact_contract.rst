@@ -16,6 +16,8 @@ The canonical artifact set is versioned explicitly:
 
 - The current artifact schema version is ``0.2.0``. This is distinct from the
   Python package version.
+- Durable per-run evidence has its own additive schema, initially ``0.1.0``.
+  Adding this evidence does not change the canonical artifact schema.
 - ``manifest.json`` is the version authority for the exported artifact set.
 - ``study.yaml`` carries its own ``schema_version`` field so a serialized study
   stays self-describing even before any runs complete.
@@ -49,8 +51,9 @@ Every canonical export writes these files into one study output directory:
 - ``manifest.json``: artifact-set manifest with ``schema_version``,
   ``study_id``, generation timestamp, run counts, model ids, and provenance.
 - ``conditions.csv``: one row per materialized condition.
-- ``runs.csv``: one row per executed run with study, condition, agent, problem,
-  seed, status, latency, token, cost, and outcome metadata.
+- ``runs.csv``: one row per planned run returned by orchestration, including
+  explicit skipped rows, with study, condition, agent, problem, seed, status,
+  latency, token, cost, and outcome metadata.
 - ``events.csv``: one row per normalized observation/event emitted during runs.
 - ``evaluations.csv``: one row per evaluator metric.
 
@@ -82,7 +85,7 @@ Public File Guarantees
      - ``study_id``, ``condition_id``, ``admissible``, ``constraint_messages``, ``assignment_meta_json``; one flat column per factor; ``block_<name>`` per block assignment
      - Factor columns carry the materialized assignments. ``assignment_meta_json`` carries condition metadata, not the factor values.
    * - ``runs.csv``
-     - Record one row per executed run and its summary metadata.
+     - Record one row per returned run, including planned runs skipped by orchestration.
      - ``study_id``, ``condition_id``, ``run_id``, ``problem_id``, ``problem_family``, ``agent_id``, ``agent_kind``, ``pattern_name``, ``model_name``, ``seed``, ``replicate``, ``status``, ``start_time``, ``end_time``, ``latency_s``, ``input_tokens``, ``output_tokens``, ``cost_usd``, ``primary_outcome``, ``trace_path``, ``manifest_path``
      - This is the primary study-context join target for downstream analysis.
    * - ``events.csv``
@@ -101,6 +104,125 @@ Public File Guarantees
      - Preserve machine-readable analysis-plan definitions.
      - Serialized analysis-plan definitions attached to the study
      - This keeps interpretation intent coupled to the exported run bundle.
+
+Durable Run Evidence
+--------------------
+
+``run_study`` persists a separately versioned evidence directory for every
+planned run:
+
+.. code-block:: text
+
+   artifacts/
+     runs/
+       <run-id>/
+         run.json
+         observations.jsonl
+         attachments/
+
+This is the source record used to explain what was configured, what was
+observed, and how each planned run ended. It is written independently of the
+``checkpoint`` option. ``checkpoint=False`` disables resumable checkpoints; it
+does not disable evidence capture.
+
+``run.json`` schema ``0.1.0`` guarantees these top-level fields:
+
+- ``schema_version`` and ``record_type``
+- ``study_id``, ``condition_id``, and ``run_id``
+- ``status``, ``status_reason``, ``attempted``, and ``terminal``
+- ``configured`` and ``observed``
+- ``timing`` and ``error``
+- ``files`` and ``integrity``
+
+``configured`` preserves the resolved agent/problem references, replicate,
+seed, and configuration metadata. ``observed`` contains only material produced
+or learned during execution: outputs, metrics, evaluator rows, provenance,
+trace and artifact references, and observation counts. Raw observations are
+stored one JSON object per line in ``observations.jsonl`` so downstream paper
+drafting does not need live ``RunResult`` objects.
+
+Lifecycle semantics are explicit:
+
+- ``pending``: planned but not yet started
+- ``running``: execution reached the run boundary
+- ``success``: execution completed successfully
+- ``failed``: execution completed with an isolated failure
+- ``skipped``: orchestration intentionally did not start the run, for example
+  after fail-fast was triggered
+
+``success``, ``failed``, and ``skipped`` are terminal. If a process exits
+abnormally, a remaining ``pending`` or ``running`` record exposes the incomplete
+state rather than silently omitting the run or fabricating a terminal outcome.
+
+Evidence writes replace ``run.json`` and ``observations.jsonl`` atomically.
+The record includes a SHA-256 digest for the observation stream and hashes for
+referenced files when they resolve inside the study directory. Known credential
+fields and common token forms are redacted recursively. Sensitive participant
+data is still the caller's responsibility and is not made safe merely by being
+stored in this layout.
+
+Use the public ``load_run_evidence_records(output_dir)`` helper to load and
+validate the records, observation digests, and available referenced-file hashes
+in a fresh process. Direct calls to
+``export_canonical_artifacts`` do not synthesize run evidence because they do
+not execute or observe runs.
+
+Optional Paper-Draft Support
+----------------------------
+
+Paper support is an optional, explicit derivative of the canonical study files,
+durable run evidence, and component-owned contribution packets. It uses the
+separately versioned paper-draft contract ``0.1.0`` and does not change canonical
+artifact schema ``0.2.0``.
+
+``run_study`` and ``collect_paper_support`` never create paper-draft files.
+``export_paper_support`` retains its support-only contract. The separate,
+explicit ``export_paper_draft`` action writes a review artifact beneath the
+canonical study output without changing artifact schema ``0.2.0``:
+
+.. code-block:: text
+
+   paper-draft/
+     main.tex
+     paper_draft.md
+     references.bib
+     paper_draft_manifest.json
+     README.md
+     sections/
+       introduction.tex
+       background.tex
+       methods.tex
+       results.tex
+       discussion.tex
+     tables/
+     figures/
+
+The draft manifest uses its own ``paper_draft_version``, declares
+``document_status`` as ``paper-draft``, records source artifact schema and run
+accounting, and maps each block to contribution provenance and evidence
+references. Existing non-empty draft directories are never replaced without
+explicit overwrite permission.
+
+Calling the earlier ``export_paper_support`` helper writes:
+
+.. code-block:: text
+
+   artifacts/paper-draft/
+     paper_support.json
+     paper_outline.md
+     references.json
+     references.bib
+
+``paper_support.json`` is the authority for the aggregate. It includes
+``draft_status``, study ID, run accounting, evidence-labeled contributions,
+deduplicated references with provenance, and unresolved reporting gaps.
+``paper_outline.md`` is visibly marked as draft support rather than a
+manuscript. ``references.bib`` contains only curated BibTeX received from a
+component or the user; the exporter never guesses a missing entry.
+
+The output directory is protected from implicit overwrite. See
+:doc:`paper_draft_support` for the component packet shape and evidence
+semantics.
 
 CSV Column Guarantees
 ---------------------
@@ -163,12 +285,13 @@ Compatibility Boundary
 ----------------------
 
 The compatibility guarantee applies to the canonical filenames and required
-fields listed above. It does not guarantee stability for:
+fields listed above, plus the separately versioned run-evidence layout. It does
+not guarantee stability for:
 
-- intermediate caches or checkpoints used only during execution
+- intermediate caches or checkpoints used only for resume behavior
 - internal Python object layouts
 - unpublished serialization details that are not exported as canonical files
 
 If a downstream consumer needs a new stable field, the correct path is to add
-it to this contract and version it through ``manifest.json`` rather than
-depending on incidental internal state.
+it to the appropriate versioned contract rather than depending on incidental
+internal state.

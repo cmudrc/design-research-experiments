@@ -34,6 +34,9 @@ autodoc_typehints = "none"
 autosummary_generate = True
 autosummary_imported_members = True
 nitpicky = True
+nitpick_ignore = [
+    ("py:class", "design_research_experiments.schemas.ValidationError"),
+]
 intersphinx_mapping = {
     "python": ("https://docs.python.org/3", None),
 }

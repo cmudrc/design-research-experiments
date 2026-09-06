@@ -7,10 +7,11 @@ Construct the smallest useful ``Study`` using only top-level ``drex`` exports.
 1. Define one manipulated factor with two levels.
 2. Register one primary outcome plus one hypothesis and analysis plan.
 3. Print ``study.to_dict()`` so the serialized schema is visible in one place.
+4. Show that a study with no execution yet has no durable run-evidence records.
 
 ## Expected Results
-The script prints one dictionary containing study metadata, factor definitions,
-hypothesis bindings, and analysis-plan fields.
+The script prints the study dictionary followed by an empty evidence-record
+mapping. Executed studies populate that mapping under ``artifacts/runs/``.
 """
 
 from __future__ import annotations
@@ -61,6 +62,7 @@ def main() -> None:
     )
 
     print(study.to_dict())
+    print(drex.load_run_evidence_records(study.output_dir or "artifacts/example-study"))
 
 
 if __name__ == "__main__":

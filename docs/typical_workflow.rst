@@ -16,8 +16,11 @@ replication policy, and either agent/problem bindings or a standalone
 3. Execute or inspect
 ---------------------
 
-Materialize conditions, execute runs, and monitor checkpointed progress. In
-interactive terminals, run execution shows a ``tqdm`` progress bar by default.
+Materialize conditions and execute runs. Each planned run immediately receives
+a durable evidence record; started runs advance to ``running`` and normal
+completion records ``success``, ``failed``, or ``skipped``. Checkpointing is a
+separate, optional resume facility. In interactive terminals, run execution
+shows a ``tqdm`` progress bar by default.
 Importing the package does not initialize notebook progress support; ``tqdm``
 is loaded only when a visible progress bar is requested.
 
@@ -25,9 +28,10 @@ is loaded only when a visible progress bar is requested.
 --------------------
 
 Export canonical artifacts (study manifest, conditions, runs, events,
-evaluations) for downstream analysis. Treat the output directory as the stable
-handoff unit and use :doc:`artifact_contract` when another repo or external
-tool is going to build against those files.
+evaluations) for downstream analysis. Use ``load_run_evidence_records`` to
+inspect the versioned per-run source records from a later process. Treat the
+output directory as the stable handoff unit and use :doc:`artifact_contract`
+when another repo or external tool is going to build against those files.
 
 5. Compose the ecosystem seams
 ------------------------------

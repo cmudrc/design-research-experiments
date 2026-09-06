@@ -91,6 +91,9 @@ class RunResult:
     run_spec: RunSpec | None = None
     started_at: str | None = None
     ended_at: str | None = None
+    status_reason: str | None = None
+    configured_execution_metadata: dict[str, Any] = field(default_factory=dict)
+    observed_execution_metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(slots=True)

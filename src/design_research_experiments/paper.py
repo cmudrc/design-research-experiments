@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from collections import Counter
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
@@ -677,8 +678,12 @@ def _aggregate_reporting_gaps(
             )
         )
 
-    package_names = {packet.source.package for packet in packets}
-    if study.problem_ids and "design-research-problems" not in package_names:
+    has_problem_contributions = any(
+        packet.source.package == "design-research-problems"
+        or packet.source.component_type == "problem"
+        for packet in packets
+    )
+    if study.problem_ids and not has_problem_contributions:
         gaps.append(
             ReportingGap(
                 gap_id="experiments:missing-problem-contributions",
@@ -687,7 +692,13 @@ def _aggregate_reporting_gaps(
                 source=source,
             )
         )
-    if study.agent_specs and "design-research-agents" not in package_names:
+    has_agent_contributions = any(
+        packet.source.package == "design-research-agents"
+        or packet.source.component_type
+        in {"agent", "workflow", "pattern", "tool", "toolbox", "model-selector", "tracer"}
+        for packet in packets
+    )
+    if study.agent_specs and not has_agent_contributions:
         gaps.append(
             ReportingGap(
                 gap_id="experiments:missing-agent-contributions",
@@ -904,12 +915,23 @@ def _bibtex_gaps(
 def _render_references_bib(references: Sequence[Mapping[str, Any]]) -> str:
     """Render only curated BibTeX payloads; never synthesize bibliographic fields."""
     entries = [
-        str(reference["raw_text"]).strip()
+        _align_bibtex_key(str(reference["raw_text"]).strip(), key=str(reference["key"]))
         for reference in references
         if isinstance(reference.get("raw_text"), str)
         and str(reference["raw_text"]).lstrip().startswith("@")
     ]
     return "" if not entries else "\n\n".join(entries) + "\n"
+
+
+_BIBTEX_KEY = re.compile(r"^(\s*@[A-Za-z]+\s*\{\s*)[^,\s]+(\s*,)")
+
+
+def _align_bibtex_key(raw_text: str, *, key: str) -> str:
+    """Align a curated BibTeX entry identifier with its stable citation key."""
+    match = _BIBTEX_KEY.match(raw_text)
+    if match is None:
+        return raw_text
+    return f"{match.group(1)}{key}{match.group(2)}{raw_text[match.end() :]}"
 
 
 def _normalize_reference(reference: Any) -> dict[str, Any]:

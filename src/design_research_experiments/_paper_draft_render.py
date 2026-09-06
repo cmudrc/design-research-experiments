@@ -7,7 +7,14 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
-from .paper import ContributionKind, EvidenceBasis, PaperContribution, PaperSection, PaperSupport
+from .paper import (
+    ContributionKind,
+    EvidenceBasis,
+    PaperContribution,
+    PaperSection,
+    PaperSupport,
+    _align_bibtex_key,
+)
 from .schemas import ValidationError
 from .study import Study
 
@@ -53,7 +60,7 @@ def render_draft_files(
 def render_references_bib(references: Sequence[Mapping[str, Any]]) -> str:
     """Render only user-curated BibTeX records without inferring fields."""
     entries = [
-        str(reference["raw_text"]).strip()
+        _align_bibtex_key(str(reference["raw_text"]).strip(), key=str(reference["key"]))
         for reference in references
         if isinstance(reference.get("raw_text"), str)
         and str(reference["raw_text"]).lstrip().startswith("@")
@@ -105,8 +112,8 @@ def _render_main_tex(study: Study, *, resolved_citations: set[str]) -> str:
         f"\\author{{{latex_escape(authors)}}}\n"
         "\\date{}\n"
         "\\begin{document}\n"
-        f"\\noindent\\fbox{{\\textbf{{{AUTHOR_REVIEW_LABEL}}}}}\\par\\medskip\n"
         "\\maketitle\n"
+        f"\\noindent\\fbox{{\\textbf{{{AUTHOR_REVIEW_LABEL}}}}}\\par\\medskip\n"
         "\\input{sections/introduction}\n"
         "\\input{sections/background}\n"
         "\\input{sections/methods}\n"

@@ -321,7 +321,7 @@ def test_reference_inputs_reuse_dataclass_shape_and_expose_missing_bibtex(tmp_pa
                 authors=("One Author",),
                 title="Complete citation",
                 year=2024,
-                raw_text="@article{complete, title={Complete citation}}",
+                raw_text="@article{source_key, title={Complete citation}}",
             ),
             {"key": "incomplete", "title": "Needs curated BibTeX"},
         ),
@@ -354,6 +354,23 @@ def test_missing_evidence_and_component_metadata_become_explicit_gaps(tmp_path: 
         "experiments:missing-agent-contributions",
         "experiments:analysis-not-observed",
     }
+
+
+def test_example_local_agent_packet_satisfies_the_component_contract(tmp_path: Path) -> None:
+    """Custom agents may own honest metadata without impersonating the Agents package."""
+    study = make_study(tmp_path=tmp_path, study_id="local-agent-metadata")
+    packet = component_packet(
+        package="design-research",
+        component_type="agent",
+        component_id="example.scripted-agent",
+        contributions=[contribution("example:scripted-agent:methods")],
+    )
+
+    support = collect_paper_support(study, component_packets=(packet,))
+
+    assert not any(
+        gap.gap_id == "experiments:missing-agent-contributions" for gap in support.reporting_gaps
+    )
 
 
 @pytest.mark.parametrize(

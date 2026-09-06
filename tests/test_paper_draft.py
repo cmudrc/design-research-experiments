@@ -125,7 +125,7 @@ def test_full_draft_has_required_tree_manifest_boundaries_and_compiles(tmp_path:
             {
                 "key": "curated2026",
                 "title": "Curated paper",
-                "raw_text": "@misc{curated2026, title={Curated paper}}",
+                "raw_text": "@misc{publisher-key, title={Curated paper}}",
             }
         ],
     )
@@ -149,6 +149,7 @@ def test_full_draft_has_required_tree_manifest_boundaries_and_compiles(tmp_path:
     assert (draft_dir / "tables").is_dir()
     assert (draft_dir / "figures").is_dir()
     assert "Generated paper draft. Author review required." in paths["main.tex"].read_text()
+    assert "\\maketitle\n\\noindent\\fbox" in paths["main.tex"].read_text()
     assert "The study configuration specifies" in paths["sections/methods.tex"].read_text()
     assert "Retained execution evidence shows" in paths["sections/methods.tex"].read_text()
     assert "50\\%" in paths["sections/background.tex"].read_text()
@@ -163,6 +164,7 @@ def test_full_draft_has_required_tree_manifest_boundaries_and_compiles(tmp_path:
     assert manifest["evidence_backed_blocks"] >= 5
     assert manifest["citation_count"] == 1
     assert manifest["todo_blocks"] >= 1
+    assert paths["references.bib"].read_text().startswith("@misc{curated2026,")
     _compile_with_tectonic(draft_dir)
 
 

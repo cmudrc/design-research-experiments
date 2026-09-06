@@ -245,7 +245,7 @@ def _handle_run_study(args: argparse.Namespace) -> int:
     if args.dry_run:
         print(f"Dry-run validation succeeded for study '{study.study_id}'.")
     else:
-        print(f"Completed {len(results)} runs for study '{study.study_id}'.")
+        print(f"Recorded {len(results)} run outcomes for study '{study.study_id}'.")
     return 0
 
 

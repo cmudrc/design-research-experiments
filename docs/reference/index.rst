@@ -23,6 +23,7 @@ Primary modules and responsibilities:
 - ``design_research_experiments.designs``: DOE builders and design materialization.
 - ``design_research_experiments.conditions``: factor/block/constraint condition generation.
 - ``design_research_experiments.runners``: execution orchestration, resume, checkpoint flow.
+- ``design_research_experiments.evidence``: durable, versioned per-run evidence records.
 - ``design_research_experiments.artifacts``: canonical exports, manifests, and bundling.
 - ``design_research_experiments.recipes``: reusable function-based study templates.
 - ``design_research_experiments.adapters``: thin orchestration glue that delegates

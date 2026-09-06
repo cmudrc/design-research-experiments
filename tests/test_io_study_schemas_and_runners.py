@@ -502,8 +502,9 @@ def test_artifact_checkpoint_bundle_and_runner_paths(tmp_path: Path) -> None:
         problem_registry=_standalone_problem_registry(*failing_study.problem_ids),
         checkpoint=False,
     )
-    assert len(failing_results) == 1
+    assert len(failing_results) == 2
     assert failing_results[0].status == RunStatus.FAILED
+    assert failing_results[1].status == RunStatus.SKIPPED
 
     # Validation helper paths
     inadmissible = Condition("cond-x", {"variant": "a"}, {}, admissible=False)

@@ -22,6 +22,11 @@ from .artifacts import (
 )
 from .conditions import Condition
 from .designs import build_design
+from .evidence import (
+    initialize_run_evidence,
+    mark_run_evidence_running,
+    write_run_evidence,
+)
 from .metrics import compose_metrics
 from .schemas import RunStatus, ValidationError, hash_identifier, stable_json_dumps, utc_now_iso
 from .study import RunResult, RunSpec, Study, validate_study
@@ -151,7 +156,7 @@ class SerialRunner:
     ) -> list[RunResult]:
         """Execute all run specs one-by-one."""
         results: list[RunResult] = []
-        for run_spec in run_specs:
+        for index, run_spec in enumerate(run_specs):
             condition = condition_by_id[run_spec.condition_id]
             result = _execute_single_run(
                 run_spec=run_spec,
@@ -159,12 +164,24 @@ class SerialRunner:
                 agent_bindings=agent_bindings,
                 problem_registry=problem_registry,
                 condition_runner=condition_runner,
+                output_dir=output_dir,
             )
             results.append(result)
-            if checkpoint:
-                checkpoint_run_result(result, output_dir=output_dir)
+            _persist_run_result(result, output_dir=output_dir, checkpoint=checkpoint)
             progress.record_result(result)
             if fail_fast and result.status == RunStatus.FAILED:
+                for skipped_spec in run_specs[index + 1 :]:
+                    skipped_result = _skipped_run_result(
+                        skipped_spec,
+                        reason="fail_fast_after_failed_run",
+                    )
+                    results.append(skipped_result)
+                    _persist_run_result(
+                        skipped_result,
+                        output_dir=output_dir,
+                        checkpoint=checkpoint,
+                    )
+                    progress.record_result(skipped_result)
                 break
         return results
 
@@ -190,7 +207,7 @@ class LocalParallelRunner:
         results: list[RunResult] = []
 
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            future_by_run_id: dict[Future[RunResult], str] = {}
+            run_spec_by_future: dict[Future[RunResult], RunSpec] = {}
             for run_spec in run_specs:
                 condition = condition_by_id[run_spec.condition_id]
                 future = executor.submit(
@@ -200,21 +217,29 @@ class LocalParallelRunner:
                     agent_bindings=agent_bindings,
                     problem_registry=problem_registry,
                     condition_runner=condition_runner,
+                    output_dir=output_dir,
                 )
-                future_by_run_id[future] = run_spec.run_id
+                run_spec_by_future[future] = run_spec
 
-            for future in as_completed(future_by_run_id):
-                result = future.result()
+            fail_fast_triggered = False
+            for future in as_completed(run_spec_by_future):
+                run_spec = run_spec_by_future[future]
+                if future.cancelled():
+                    result = _skipped_run_result(
+                        run_spec,
+                        reason="cancelled_after_failed_run",
+                    )
+                else:
+                    result = future.result()
                 results.append(result)
-                if checkpoint:
-                    checkpoint_run_result(result, output_dir=output_dir)
+                _persist_run_result(result, output_dir=output_dir, checkpoint=checkpoint)
                 progress.record_result(result)
-                if fail_fast and result.status == RunStatus.FAILED:
-                    for pending_future in future_by_run_id:
+                if fail_fast and result.status == RunStatus.FAILED and not fail_fast_triggered:
+                    fail_fast_triggered = True
+                    for pending_future in run_spec_by_future:
                         if pending_future.done():
                             continue
                         pending_future.cancel()
-                    break
 
         return results
 
@@ -273,6 +298,12 @@ def run_study(
     resolved_parallelism = parallelism if parallelism is not None else study.run_budget.parallelism
     if resolved_parallelism < 1:
         raise ValidationError("parallelism must be >= 1.")
+
+    for existing_result in existing_progress_results:
+        write_run_evidence(existing_result, output_dir=output_dir)
+    for pending_run_spec in pending_run_specs:
+        initialize_run_evidence(pending_run_spec, output_dir=output_dir)
+
     progress = _create_run_progress(
         study_id=study.study_id,
         total=len(all_run_specs),
@@ -565,10 +596,14 @@ def _execute_single_run(
     agent_bindings: Mapping[str, AgentBinding] | None,
     problem_registry: Mapping[str, Any] | None,
     condition_runner: ConditionRunner | None,
+    output_dir: Path,
 ) -> RunResult:
     """Execute one run spec with failure isolation."""
     started_at = utc_now_iso()
     start_time = time.perf_counter()
+    configured_execution_metadata = dict(run_spec.execution_metadata)
+    observed_execution_metadata: dict[str, Any] = {}
+    mark_run_evidence_running(run_spec, output_dir=output_dir, started_at=started_at)
 
     try:
         with reproducible_seed(run_spec.seed):
@@ -586,6 +621,7 @@ def _execute_single_run(
                 registry=problem_registry,
             )
             run_spec.execution_metadata["problem_family"] = problem_packet.family
+            observed_execution_metadata["problem_family"] = problem_packet.family
 
             agent_execution = execute_agent(
                 agent_spec_ref=run_spec.agent_spec_ref,
@@ -607,6 +643,7 @@ def _execute_single_run(
                 if value in (None, ""):
                     continue
                 run_spec.execution_metadata[key] = value
+                observed_execution_metadata[key] = value
 
             evaluation_rows = evaluate_problem(problem_packet, agent_execution.output)
             for row in evaluation_rows:
@@ -626,11 +663,11 @@ def _execute_single_run(
                 "agent_id": run_spec.execution_metadata.get("agent_id"),
                 "problem_id": run_spec.problem_id,
                 "problem_family": problem_packet.family,
-                "model_name": agent_execution.metadata.get("model_name"),
-                "model_provider": agent_execution.metadata.get("model_provider"),
-                "request_id": agent_execution.metadata.get("request_id"),
-                "trace_dir": agent_execution.metadata.get("trace_dir"),
-                "trace_path": agent_execution.metadata.get("trace_path"),
+                "model_name": observed_execution_metadata.get("model_name"),
+                "model_provider": observed_execution_metadata.get("model_provider"),
+                "request_id": observed_execution_metadata.get("request_id"),
+                "trace_dir": observed_execution_metadata.get("trace_dir"),
+                "trace_path": observed_execution_metadata.get("trace_path"),
                 "execution_metadata": stable_json_dumps(run_spec.execution_metadata),
             }
 
@@ -650,6 +687,8 @@ def _execute_single_run(
                 run_spec=run_spec,
                 started_at=started_at,
                 ended_at=utc_now_iso(),
+                configured_execution_metadata=configured_execution_metadata,
+                observed_execution_metadata=observed_execution_metadata,
             )
     except Exception as exc:
         latency_s = time.perf_counter() - start_time
@@ -672,6 +711,9 @@ def _execute_single_run(
             run_spec=run_spec,
             started_at=started_at,
             ended_at=utc_now_iso(),
+            status_reason="exception",
+            configured_execution_metadata=configured_execution_metadata,
+            observed_execution_metadata=observed_execution_metadata,
         )
 
 
@@ -703,4 +745,28 @@ def _execute_condition_runner(
         run_spec=run_spec,
         started_at=started_at,
         ended_at=utc_now_iso(),
+    )
+
+
+def _persist_run_result(
+    run_result: RunResult,
+    *,
+    output_dir: Path,
+    checkpoint: bool,
+) -> None:
+    """Persist mandatory evidence and optional resume state for one result."""
+    write_run_evidence(run_result, output_dir=output_dir)
+    if checkpoint:
+        checkpoint_run_result(run_result, output_dir=output_dir)
+
+
+def _skipped_run_result(run_spec: RunSpec, *, reason: str) -> RunResult:
+    """Create an explicit terminal result for a planned run that did not start."""
+    return RunResult(
+        run_id=run_spec.run_id,
+        status=RunStatus.SKIPPED,
+        provenance_info={"skip_reason": reason},
+        run_spec=run_spec,
+        ended_at=utc_now_iso(),
+        status_reason=reason,
     )

@@ -35,6 +35,8 @@ This package centers on reproducible experiment structure and execution:
   repeated measures, latin square, custom matrices)
 - run orchestration with deterministic seeding, always-on per-run evidence,
   optional checkpointing, resume support, and interactive `tqdm` progress
+- explicit, disabled-by-default paper-support aggregation with provenance,
+  deduplicated curated references, and unresolved reporting gaps
 - standalone condition callbacks for simulations that do not require synthetic
   problem or agent bindings
 - canonical artifact exports (`study.yaml`, `manifest.json`, `conditions.csv`,
@@ -150,6 +152,7 @@ Selected primary entry points include:
 - `build_univariate_comparison_study`, `build_bivariate_comparison_study`,
   `build_strategy_comparison_study`, and other recipe builders
 - `run_study`, `resume_study`, `load_run_evidence_records`
+- `collect_paper_support`, `export_paper_support`
 - `export_analysis_tables`, `validate_study`
 
 ## Contributing

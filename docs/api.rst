@@ -56,6 +56,8 @@ The top-level package exports a curated public API suitable for notebook/script 
 - ``run_study``
 - ``resume_study``
 - ``load_run_evidence_records``
+- ``collect_paper_support``
+- ``export_paper_support``
 - ``export_analysis_tables``
 - ``render_markdown_summary``
 - ``render_methods_scaffold``

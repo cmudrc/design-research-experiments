@@ -167,6 +167,36 @@ in a fresh process. Direct calls to
 ``export_canonical_artifacts`` do not synthesize run evidence because they do
 not execute or observe runs.
 
+Optional Paper-Draft Support
+----------------------------
+
+Paper support is an optional, explicit derivative of the canonical study files,
+durable run evidence, and component-owned contribution packets. It uses the
+separately versioned paper-draft contract ``0.1.0`` and does not change canonical
+artifact schema ``0.2.0``.
+
+``run_study`` and ``collect_paper_support`` never create paper-draft files.
+Calling ``export_paper_support`` writes:
+
+.. code-block:: text
+
+   artifacts/paper-draft/
+     paper_support.json
+     paper_outline.md
+     references.json
+     references.bib
+
+``paper_support.json`` is the authority for the aggregate. It includes
+``draft_status``, study ID, run accounting, evidence-labeled contributions,
+deduplicated references with provenance, and unresolved reporting gaps.
+``paper_outline.md`` is visibly marked as draft support rather than a
+manuscript. ``references.bib`` contains only curated BibTeX received from a
+component or the user; the exporter never guesses a missing entry.
+
+The output directory is protected from implicit overwrite. See
+:doc:`paper_draft_support` for the component packet shape and evidence
+semantics.
+
 CSV Column Guarantees
 ---------------------
 

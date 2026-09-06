@@ -455,7 +455,10 @@ def test_runner_separates_configured_and_observed_execution_metadata(tmp_path: P
     assert record["observed"]["execution_metadata"]["model_name"] == "observed-model"
 
 
-def test_parallel_fail_fast_records_cancelled_work_as_skipped(tmp_path: Path) -> None:
+def test_parallel_fail_fast_records_cancelled_work_as_skipped(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Queued parallel work cancelled by fail-fast should remain fully accounted for."""
     study = make_study(
         tmp_path=tmp_path,
@@ -472,6 +475,14 @@ def test_parallel_fail_fast_records_cancelled_work_as_skipped(tmp_path: Path) ->
     )
     other_worker_started = threading.Event()
     release_workers = threading.Event()
+    original_skipped_result = runner_module._skipped_run_result
+
+    def record_cancellation(run_spec: RunSpec, *, reason: str) -> RunResult:
+        result = original_skipped_result(run_spec, reason=reason)
+        release_workers.set()
+        return result
+
+    monkeypatch.setattr(runner_module, "_skipped_run_result", record_cancellation)
 
     def controlled_condition(_run_spec: RunSpec, condition: Condition) -> RunOutput:
         if condition.factor_assignments["variant"] == 0:
@@ -481,13 +492,10 @@ def test_parallel_fail_fast_records_cancelled_work_as_skipped(tmp_path: Path) ->
         assert release_workers.wait(timeout=1)
         return RunOutput(outputs={"text": "completed after cancellation"})
 
-    release_timer = threading.Timer(0.2, release_workers.set)
-    release_timer.start()
     try:
         results = run_study(study, condition_runner=controlled_condition, show_progress=False)
     finally:
         release_workers.set()
-        release_timer.cancel()
 
     records = load_run_evidence_records(study.output_dir or tmp_path)
     assert len(results) == len(records) == 10

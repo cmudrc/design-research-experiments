@@ -67,6 +67,9 @@ it does not define a competing bibliography model.
 Stable citation keys are deduplicated across packets. Compatible partial
 records are merged and retain every contributing source. Conflicting titles or
 other populated fields fail loudly. A contribution cannot cite an absent key.
+The aggregate reference's ``provenance`` is a deduplicated list of packet
+sources, not a bibliographic field to merge with component-local provenance.
+Prompt and problem lineage remains available in contribution metadata.
 Only curated ``raw_text`` beginning with a BibTeX entry marker is written to
 ``references.bib``; missing BibTeX becomes a TODO instead of a fabricated
 entry.

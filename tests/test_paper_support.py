@@ -6,6 +6,7 @@ import json
 import os
 import subprocess
 import sys
+from copy import deepcopy
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, cast
@@ -190,6 +191,56 @@ def test_collect_support_aggregates_evidence_components_and_citations(tmp_path: 
     assert "experiments:analysis-not-observed" not in gap_ids
     assert "experiments:missing-problem-contributions" not in gap_ids
     assert "experiments:missing-agent-contributions" not in gap_ids
+
+
+def test_shared_citations_keep_aggregate_provenance_separate_from_packet_metadata(
+    tmp_path: Path,
+) -> None:
+    """Problem-local provenance must not overwrite the deduplicated source list."""
+    study = make_study(tmp_path=tmp_path, study_id="shared-problem-citations")
+    packets = [
+        component_packet(
+            package="design-research-problems",
+            component_type="problem",
+            component_id=problem_id,
+            references=[
+                {
+                    "key": "shared-source",
+                    "title": "Shared problem source",
+                    "provenance": {"problem_id": problem_id, "prompt_ids": [prompt_id]},
+                }
+            ],
+            contributions=[
+                contribution(
+                    f"problems:{problem_id}:background",
+                    citation_keys=["shared-source"],
+                    metadata={"prompt_ids": [prompt_id]},
+                )
+            ],
+        )
+        for problem_id, prompt_id in (("problem-1", "prompt-1"), ("problem-2", "prompt-2"))
+    ]
+    original = deepcopy(packets)
+
+    support = collect_paper_support(study, component_packets=(*packets, packets[0]))
+
+    assert len(support.references) == 1
+    assert support.references[0]["provenance"] == [packet["source"] for packet in packets]
+    assert collect_paper_support(study, component_packets=tuple(reversed(packets))) == support
+    assert packets == original
+    for packet in packets:
+        retained = next(
+            item
+            for item in support.contributions
+            if item.source.component_id == packet["source"]["component_id"]
+        )
+        assert (
+            retained.metadata["prompt_ids"] == packet["contributions"][0]["metadata"]["prompt_ids"]
+        )
+
+    packets[1]["references"][0]["title"] = "Conflicting source title"
+    with pytest.raises(ValidationError, match="Conflicting citation key"):
+        collect_paper_support(study, component_packets=packets)
 
 
 def test_export_is_explicit_strongly_marked_and_refuses_implicit_overwrite(

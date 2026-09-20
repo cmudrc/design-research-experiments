@@ -836,6 +836,8 @@ def _deduplicate_references(
     by_key: dict[str, dict[str, Any]] = {}
     for raw_reference, source in references:
         reference = _normalize_reference(raw_reference)
+        # Aggregate provenance comes from packet sources, not bibliographic fields.
+        reference.pop("provenance", None)
         key = str(reference["key"])
         provenance = source.to_dict()
         existing = by_key.get(key)

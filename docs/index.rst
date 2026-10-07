@@ -108,6 +108,7 @@ shape a stable experimental pipeline.
 - :doc:`study_structure_example`
 - :doc:`examples_and_recipes`
 - :doc:`artifact_contract`
+- :doc:`paper_draft_support`
 
 Examples
 --------
@@ -190,6 +191,7 @@ Start Here
    :hidden:
 
    guides
+   paper_draft_support
 
 .. toctree::
    :maxdepth: 2

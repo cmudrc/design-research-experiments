@@ -430,7 +430,10 @@ def _runs_rows(
         if run_spec is None:
             continue
 
-        execution_metadata = run_spec.execution_metadata
+        execution_metadata = {
+            **run_spec.execution_metadata,
+            **run_result.observed_execution_metadata,
+        }
         row = {
             "study_id": study.study_id,
             "condition_id": run_spec.condition_id,
@@ -555,6 +558,9 @@ def _run_result_from_payload(payload: Mapping[str, Any]) -> RunResult:
         run_spec=run_spec,
         started_at=payload.get("started_at"),
         ended_at=payload.get("ended_at"),
+        status_reason=payload.get("status_reason"),
+        configured_execution_metadata=dict(payload.get("configured_execution_metadata", {})),
+        observed_execution_metadata=dict(payload.get("observed_execution_metadata", {})),
     )
 
 

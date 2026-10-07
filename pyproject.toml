@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "design-research-experiments"
-version = "0.3.0"
+version = "0.4.0"
 description = "Study design and orchestration for the CMU Design Research Collective ecosystem"
 readme = "README.md"
 requires-python = ">=3.12"

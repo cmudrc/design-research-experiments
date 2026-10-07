@@ -61,6 +61,12 @@ runner still owns failure isolation, checkpointing, resume, progress, and
 canonical artifact export; standalone studies do not need placeholder problem
 or agent identifiers.
 
+Run evidence and checkpoints serve different purposes. Every planned run gets
+a durable lifecycle record under ``artifacts/runs/`` whether checkpointing is
+enabled or not. Checkpoints remain optional implementation state used to resume
+execution. An interrupted process may leave ``pending`` or ``running`` evidence,
+which is an explicit incomplete state rather than an inferred failure.
+
 Artifacts and Manifests
 -----------------------
 
@@ -69,9 +75,9 @@ and manifests) are designed to feed downstream analysis and reporting without
 ad-hoc schema translation. See :doc:`artifact_contract` for the file-level
 guarantees and versioning rules.
 
-The public compatibility promise lives at the file-contract level. Internal
-checkpoint or cache details are intentionally outside that boundary unless they
-are promoted into :doc:`artifact_contract`.
+The public compatibility promise lives at the file-contract level. Versioned
+run-evidence records are part of that promise; internal checkpoint or cache
+details remain outside it.
 
 Control-Layer Role
 ------------------

@@ -82,3 +82,21 @@ Create a bundled archive of study outputs.
 .. code-block:: bash
 
    drexp bundle-results artifacts/study-output --bundle-path artifacts/study-output.tar.gz
+
+``draft-paper``
+~~~~~~~~~~~~~~~
+
+Explicitly assemble a review-required Markdown and LaTeX paper draft from a
+study artifact directory or its ``manifest.json``. Ordinary study execution
+never invokes this command automatically.
+
+.. code-block:: bash
+
+   drexp draft-paper artifacts/study-output
+   drexp draft-paper artifacts/study-output/manifest.json --require-complete
+   drexp draft-paper artifacts/study-output --component-packet problem-paper.json --component-packet analysis-paper.json
+
+The default destination is ``artifacts/study-output/paper-draft``. Use
+``--output-dir`` for an explicit destination and ``--overwrite`` to replace an
+existing non-empty draft. ``--require-complete`` still writes a partial draft,
+then exits nonzero if evidence-critical TODOs remain.

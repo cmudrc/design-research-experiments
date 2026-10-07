@@ -13,7 +13,10 @@ from .bundles import (
 )
 from .conditions import Condition, Constraint, Factor, FactorKind, Level, materialize_conditions
 from .designs import DesignKind, DesignSpec, build_design, generate_doe
+from .evidence import load_run_evidence_records
 from .hypotheses import AnalysisPlan, Hypothesis, OutcomeSpec
+from .paper import collect_paper_support, export_paper_support
+from .paper_draft import PaperDraftIncompleteError, export_paper_draft
 from .recipes import (
     AgentArchitectureComparisonConfig,
     BivariateComparisonConfig,
@@ -73,6 +76,7 @@ __all__ = [
     "Level",
     "OptimizationBenchmarkConfig",
     "OutcomeSpec",
+    "PaperDraftIncompleteError",
     "ProblemPacket",
     "PromptFramingConfig",
     "RecipeStudyConfig",
@@ -96,11 +100,15 @@ __all__ = [
     "build_prompt_framing_study",
     "build_strategy_comparison_study",
     "build_univariate_comparison_study",
+    "collect_paper_support",
     "export_analysis_tables",
+    "export_paper_draft",
+    "export_paper_support",
     "generate_doe",
     "grammar_problem_bundle",
     "human_vs_agent_bundle",
     "ideation_bundle",
+    "load_run_evidence_records",
     "materialize_conditions",
     "optimization_bundle",
     "render_codebook",
